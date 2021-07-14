@@ -1,0 +1,127 @@
+# reference : https://www.tutorialspoint.com/r/r_linear_regression.htm
+# for simple example
+# reference: http://www.sthda.com/english/articles/40-regression-analysis/166-predict-in-r-model-predictions-and-confidence-intervals/
+# for visualizing confidence interval/prediction interval
+
+# 4주차 실습 : Linear Regression 2 (prediction & visualization)
+
+getwd()
+# change the working directory where the iris data is (if needed)
+setwd("C:/Users/keonvin/Desktop/데이터마이닝 방법 및 실습 (박태성 교수님;TA 과목)")
+getwd()
+
+install.packages("ggplot2")
+library("ggplot2")
+
+# (1) first example: x=height, y=weight
+#     : we want to estimate/predict weight based on height.
+
+# Data input
+x <- c(151, 174, 138, 186, 128, 136, 179, 163, 152, 131)
+y <- c(63, 81, 56, 91, 47, 57, 76, 72, 62, 48)
+
+x
+y
+# fitting simple regression model
+relation <-lm(y~x)
+
+# print the result
+print(relation)
+
+# summary the result
+summary(relation)
+
+# Apply the lm() function.
+
+relation <-lm(y~x)
+
+# new sample : when x=170 (height), what would be y hat (predicted weight)
+a<-data.frame(x=170)
+a
+# save the y hat
+result<-predict(relation,a)
+
+# print the y hat 
+print(result)
+
+# For visualizing the result (scatter plot + regression line)
+
+# Give the chart file a name.
+png(file = "Linear_regression.png")
+
+# Plot the chart.
+plot(x,y,col = "blue",main = "Height & Weight Regression",
+     abline(lm(y~x)),cex = 1.3,pch = 16,xlab = "Height in cm",ylab = "Weight in kg")
+
+# Save the file.
+dev.off()
+
+# 95% Confidence interval for y hat when x=170
+predict(relation, newdata = a, interval = "confidence")
+
+# 95% Prediction interval for y hat when x=170
+predict(relation, newdata = a, interval = "prediction")
+
+
+# 1. Add predictions and prediction interval (95%)
+pred.int <- predict(relation, interval = "prediction")
+pred.int
+
+# add predicted values to original data
+mydata <- as.data.frame(cbind(y,x,pred.int))
+
+mydata
+
+# 2. Regression line + confidence intervals
+p <- ggplot(mydata, aes(x, y)) +
+  geom_point() +
+  stat_smooth(method = lm)
+# check the result
+p
+
+# 3. Add prediction intervals
+p + geom_line(aes(y = lwr), color = "red", linetype = "dashed")+
+  geom_line(aes(y = upr), color = "red", linetype = "dashed")
+
+
+# (2) Second example: cars data
+# Load the data
+data("cars", package = "datasets")
+cars
+# Build the model
+model <- lm(dist ~ speed, data = cars)
+
+# summary the result
+summary(model)
+
+# make new sample for prediction
+new.speeds <- data.frame(
+  speed = c(12, 19, 24)
+)
+new.speeds
+
+# 95% confidence interval for new samples
+predict(model, newdata = new.speeds, interval = "confidence")
+
+# 95% prediction interval for new samples
+predict(model, newdata = new.speeds, interval = "prediction")
+
+# 1. Add predictions 
+pred.int <- predict(model, interval = "prediction")
+pred.int
+
+mydata <- cbind(cars, pred.int)
+mydata
+# 2. Regression line + confidence intervals
+p <- ggplot(mydata, aes(speed, dist)) +
+  geom_point() +
+  stat_smooth(method = lm)
+# check the result
+p
+
+# 3. Add prediction intervals
+p + geom_line(aes(y = lwr), color = "red", linetype = "dashed")+
+  geom_line(aes(y = upr), color = "red", linetype = "dashed")
+
+data(iris)
+iris

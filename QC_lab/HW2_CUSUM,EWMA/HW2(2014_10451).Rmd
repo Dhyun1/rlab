@@ -1,0 +1,324 @@
+---
+title: "HW2(2014_10451)"
+author: "2014-10451"
+date: "2020년 10월 25일"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Q1
+```{r}
+tab_9e3 <- matrix(
+  c(160,158,150,151,153,154,158,162,
+    186,195,179,184,175,192,186,197,
+    190,189,185,182,181,180,183,186,
+    206,210,216,212,211,202,205,197),
+    ncol=1,byrow=T)
+x<-tab_9e3
+t_vec<-1:length(x)
+plot(t_vec,x,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(X[n]),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),ylim=c(150,220),cex=0.8)
+
+k=0.5
+h=5
+sigma=sqrt(sum((x-mean(x))^2)/(length(x)-1))
+K=k*sigma
+H=h*sigma
+
+cnx_p <- rep(0,length(x))
+cnx_m <- rep(0,length(x))
+mu0 <- 175
+cnx_p[1]<-max(0,0+(x[1]-mu0-K))
+cnx_m[1]<-max(0,mu0-K-x[1])
+
+for(i in 2:length(x)){
+  cnx_p[i]<-max(0,cnx_p[i-1]+x[i]-mu0-K)
+  cnx_m[i]<-min(0,cnx_m[i-1]+mu0-x[i]-K)
+}
+
+#Upper CUSUM Statistic CUSUM Chart
+plot(t_vec,cnx_p,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(C[n]^{"+"}),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),
+     ylim=c(0,250),cex=0.8)
+lines(t_vec,rep(H,length(t_vec)),lty=2,cex=0.8)
+
+#Lower CUSUM Statistic CUSUM Chart
+plot(t_vec,cnx_m,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(C[n]^{"-"}),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),
+     ylim=c(0,120),cex=0.8)
+lines(t_vec,rep(H,length(t_vec)),lty=2,cex=0.8)
+```
+(1)sigma의 추정량은 sample standard deviation으로 구할 수 있다. (19.43369)
+(2)H=h*sigma 
+   K=k*sigma를 구하고, 정해진 K를 이용해 Cn+,Cn- 통계량을 모두 구한 뒤 plotting하고 H line을 그린다.
+   
+# Q2
+```{r}
+tab_6e14 <- matrix(
+  c(2.49,3.39,7.41,2.88,0.76,1.32,7.05,1.37,6.17,5.12,
+    1.34,0.50,4.35,1.67,1.63,4.88,15.19,0.67,4.14,2.16,
+    1.14,2.66,4.67,1.54,5.06,3.40,1.39,1.11,6.92,36.99),
+    ncol=1,byrow=T)
+x<-tab_6e14
+t_vec<-1:length(x)
+plot(t_vec,x,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(X[n]),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),ylim=c(0,40),cex=0.8)
+mu0_hat<-mean(x)
+sigma_hat<-sqrt(sum((x-mean(x))^2)/(length(x)-1))
+mu0_hat
+sigma_hat
+lambda<-0.1
+L<-2.814 #L=2.814, lambda=0.1 gives ARL0=500
+
+#EWMA Statistic {Z_i} with Z_0=mu0_hat
+Z<-rep(0,length(x))
+UCL<-rep(0,length(x))
+LCL<-rep(0,length(x))
+UCL[1]<-mu0_hat+L*sigma_hat*sqrt(0.1*(1-0.9^2)/1.9)
+LCL[1]<-mu0_hat-L*sigma_hat*sqrt(0.1*(1-0.9^2)/1.9)
+Z[1]<-lambda*x[1]+(1-lambda)*mu0_hat
+
+for(k in 2:length(x)){
+  Z[k]<-lambda*x[k]+(1-lambda)*Z[k-1]
+UCL[k]<-mu0_hat+L*sigma_hat*sqrt(0.1*(1-0.9^(2*k))/1.9)
+LCL[k]<-mu0_hat-L*sigma_hat*sqrt(0.1*(1-0.9^(2*k))/1.9)
+}
+
+plot(t_vec,Z,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(Z[i]),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),ylim=c(0,10),cex=0.8)
+lines(t_vec,UCL,lty=2,cex=0.8)
+lines(t_vec,LCL,lty=2,cex=0.8)
+```
+EWMA에서 ARL0=500을 원한다고 가정해보자. lambda=0.1으로 선택할 때 주어진 ARL0를 만족시키는 L=2.814이다(강의노트 Part II. Univariate Detection 5(EWMA) 11p.)
+sample은 총 32개로 크지 않아 steady-state control limits을 사용하기 어렵다고 판단하여 time-varying control limits를 사용하였다. 모든 sample이 [LCL,UCL] 구간에 포함되므로 I.C Process라고 할 수 있다.
+
+# Q3
+```{r}
+lambda=0.4
+L=3.054
+
+for(k in 1:length(x)){
+UCL[k]<-mu0_hat+L*sigma_hat*sqrt(0.4*(1-0.6^(2*k))/1.6)
+LCL[k]<-mu0_hat-L*sigma_hat*sqrt(0.4*(1-0.6^(2*k))/1.6)
+}
+
+plot(t_vec,Z,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(Z[i]),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),ylim=c(-10,20),cex=0.8)
+lines(t_vec,UCL,lty=2,cex=0.8)
+lines(t_vec,LCL,lty=2,cex=0.8)
+
+
+```
+앞선 문제와 동일하게 ARL0=500이라고 설정하자. lambda=0.4에서 ARL0=500을 주는 L=3.054이다(강의노트 Part II. Univariate Detection 5(EWMA) 11p.)
+위 값을 적용하여 time-varying state에서 새로운 UCL,LCL 값들을 구하고 이를 다시 plotting하였다. 앞선 문제와 동일하게 모든 sample 특성치가 [LCL,UCL] 구간에 포함되어 있으며, 추가적으로 앞선 문제에 비해 [LCL,UCL]이 더 넓어진 것을 알 수 있다.
+
+# Q4
+```{r}
+x<-tab_9e3
+mu0=175
+sigma_hat=sqrt(sum((x-mean(x))^2)/(length(x)-1))
+lambda=0.05
+L=2.6
+t_vec=1:length(x)
+
+Z<-rep(0,length(x))
+UCL<-rep(0,length(x))
+LCL<-rep(0,length(x))
+UCL[1]<-mu0+L*sigma_hat*sqrt(0.05*(1-0.95^2)/1.95)
+LCL[1]<-mu0-L*sigma_hat*sqrt(0.05*(1-0.95^2)/1.95)
+Z[1]<-lambda*x[1]+(1-lambda)*mu0
+
+for(k in 2:length(x)){
+  Z[k]<-lambda*x[k]+(1-lambda)*Z[k-1]
+UCL[k]<-mu0+L*sigma_hat*sqrt(0.05*(1-0.95^(2*k))/1.95)
+LCL[k]<-mu0-L*sigma_hat*sqrt(0.05*(1-0.95^(2*k))/1.95)
+}
+
+plot(t_vec,Z,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(Z[i]),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),ylim=c(160,200),cex=0.8)
+lines(t_vec,UCL,lty=2,cex=0.8)
+lines(t_vec,LCL,lty=2,cex=0.8)
+which((LCL-Z)>0)
+```
+앞선 문제와 마찬가지로 steady-state가 아닌 time-varying 가정으로 i차 항에 대한 LCL[i],UCL[i]를 모두 구하고 Z[i]가 그 구간에 포함되는지 확인해본 결과, i=6,7,8에서 Z가 LCL보다 작아 해당 구간에서 벗어난 것을 확인하였다. 따라서, 앞선 문제와 다르게 EWMA 특성치를 사용한 결과 해당 공정은 i=6에서 signal하여, O.C. 상태라는 결론을 얻는다.  
+
+# Q5
+```{r}
+table_4e8 <- matrix(c(
+  81,56,82,
+  112,73,66,
+  108,62,76,
+  95,61,66,
+  111,68,78,
+  98,65,71,
+  98,64,84,
+  115,72,61,
+  112,72,77,
+  103,63,74,
+  117,72,59,
+  103,71,85,
+  100,65,64,
+  105,64,71,
+  100,71,85,
+  115,66,65,
+  113,84,78,
+  107,71,76,
+  117,74,90,
+  96,68,81,
+  107,60,72,
+  90,57,89,
+  119,69,61,
+  85,59,77,
+  107,70,83),
+  nrow=25,ncol=3,byrow="T")
+colnames(table_4e8) <- c("Systolic", "Diastolic","PulseRate")
+
+x<-table_4e8[,3]
+t_vec<-1:length(x)
+mu0_hat<-mean(x)
+sigma_hat<-sqrt(sum((x-mean(x))^2)/(length(x)-1))
+lambda=0.2
+L=2.962 #gives ARL0=500
+
+Z<-rep(0,length(x))
+UCL<-rep(0,length(x))
+LCL<-rep(0,length(x))
+UCL[1]<-mu0_hat+L*sigma_hat*sqrt(0.2*(1-0.8^2)/1.8)
+LCL[1]<-mu0_hat-L*sigma_hat*sqrt(0.2*(1-0.8^2)/1.8)
+Z[1]<-lambda*x[1]+(1-lambda)*mu0_hat
+
+for(k in 2:length(x)){
+  Z[k]<-lambda*x[k]+(1-lambda)*Z[k-1]
+UCL[k]<-mu0_hat+L*sigma_hat*sqrt(0.2*(1-0.8^(2*k))/1.8)
+LCL[k]<-mu0_hat-L*sigma_hat*sqrt(0.2*(1-0.8^(2*k))/1.8)
+}
+length(t_vec)
+plot(t_vec,Z,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(Z[i]),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),ylim=c(50,100),cex=0.8)
+lines(t_vec,UCL,lty=2,cex=0.8)
+lines(t_vec,LCL,lty=2,cex=0.8)
+```
+ steady-state가 아닌 time-varying 가정으로 i차 항에 대한 LCL[i],UCL[i]를 모두 구하고 Z[i]가 그 구간에 포함되는지 확인해본 결과 모든 sample 특성치가 해당 구간 안에 있으므로 EWMA 특성치를 사용한 결과 해당 공정은 I.C. 상태라는 결론을 얻는다. Assignable Cause는 공정의 중심치나 산포의 변화를 일으키는 요인으로서, 이 경우 공정은 해당 사항이 없는 I.C. 상태이므로 Assignable Cause는 없다.
+
+# Q6
+```{r}
+arl0 <- function(h,k){
+  return((exp(2*k*(h+1.166))-2*k*(h+1.166)-1)/(2*k^2))
+}
+
+k=0.2
+arl0(10,0.2)/2 
+#1/ARL=1/ARL(+)+1/ARL(-) where ARL(+)=ARL(-)
+#h=10 gives arl0 500
+h=10
+K=k*sigma_hat
+H=h*sigma_hat
+
+cnx_p <- rep(0,length(x))
+cnx_m <- rep(0,length(x))
+cnx_p[1]<-max(0,0+(x[1]-mu0_hat-K))
+cnx_m[1]<-max(0,mu0_hat-K-x[1])
+
+for(i in 2:length(x)){
+  cnx_p[i]<-max(0,cnx_p[i-1]+x[i]-mu0_hat-K)
+  cnx_m[i]<-min(0,cnx_m[i-1]+mu0_hat-x[i]-K)
+}
+
+#Upper CUSUM Statistic CUSUM Chart
+plot(t_vec,cnx_p,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(C[n]^{"+"}),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),
+     ylim=c(0,100),cex=0.8)
+lines(t_vec,rep(H,length(t_vec)),lty=2,cex=0.8)
+
+#Lower CUSUM Statistic CUSUM Chart
+plot(t_vec,cnx_m,type="o",lty=1,pch=16,
+     xlab="n",ylab=expression(C[n]^{"-"}),mgp=c(2,1,0),
+     xlim=c(0,length(t_vec)),
+     ylim=c(0,100),cex=0.8)
+lines(t_vec,rep(H,length(t_vec)),lty=2,cex=0.8)
+```
+k=0.2일 때, 앞선문제에서 설정한 값 ARL0=500을 주는
+h 값을 Siegmund Approximation을 통해 구하였다(h=10).
+위 설정 값들을 통해 reference value와 limit line을 두어
+C+와 C- 특성치를 분석한 결과 특성치 모두 Limit 안에 들어와 공정이 I.C. 상태임을 알 수 있다.
+
+# Q7
+```{r}
+arl0 <- function(h,k){
+  return((exp(2*k*(h+1.166))-2*k*(h+1.166)-1)/(2*k^2))
+}
+arl1 <- function(h,k,delta,lambda,sigma){
+  h_s <- h/(lambda*sigma)
+  k_s <- (k-delta)/(lambda*sigma)
+  if(k_s==0){
+    return((h_s+1.166)^2)
+  }
+  else{
+    return(arl0(h_s,k_s))
+  }
+}
+#arl0(4.095,0.5) approximately 370
+arl1(4.095,0.5,0.5,1,1) #N(0.5,1)
+arl1(4.095,0.5,1,1,1)   #N(1,1)
+arl1(4.095,0.5,-1,1,1)  #N(-1,1)
+arl1(4.095,0.5,0,2,1)   #N(0,4)
+arl1(4.095,0.5,0,0.5,1) #N(0.0.25)
+arl1(4.095,0.5,1,2,1)   #N(1,4)
+```
+3번째 값과 5번째 값은 각각 1489484와 66909577로 거의 detect를 하지 못한다고 볼 수 있을 정도이다. 3번째 case의 는 mean shift가 0->-1로 negative한 방향, 5번째 case는 variance shift가 1->0.25로 negative한 방향이다. 따라서
+C_n(+)를 이용한 one-side 방법으로는 mean과 variance의 negative shift를 detect하기 어렵다. 
+
+# Q8
+```{r}
+library(spc)
+xewma.arl(l=0.1,c=1,mu=1)
+xewma.arl(l=0.1,c=2,mu=1)
+xewma.arl(l=0.5,c=1,mu=1)
+xewma.arl(l=0.5,c=2,mu=1)
+
+xewma.arl(l=0.1,c=10,mu=5)
+xewma.arl(l=0.5,c=10,mu=5)
+```
+true mean=0으로 설정하고 문제를 풀어보았다. 
+a)Compare 1&2, 3&4. 
+lambda의 값이 같을 때, c 값이 증가할수록 ARL은 증가하였다. 이는 c, 즉 Limit line을 위로 올리면 chart가 처음으로 signal하기까지의 시간이 길어지기 때문이다.
+b)Compare 1&3, 5&6.
+같은 C 값에서 lambda의 값이 증가할수록 ARL이 감소하였지만 이는 일반적인 사실이 아니다. 
+문제에서 요구하지는 않지만 c=10이고 true mean=5인 경우는
+오히려 lambda의 값이 증가할 때 ARL이 증가하였다. 따라서 같은 c 값에서 lambda와 ARL은 일관성 있는 관계를 보여주지 않는다. 작은 lambda는 작은 shift를 잘 detect하며 큰 lambda는 큰 shift를 잘 detect하는데, 문제에서 제시하는 c=1은 작은 shift에 해당하고, 따라서 ARL0는 lambda가 작은 경우에서 더 크게 나타난다(ARL0는 클수록 좋고, ARL1은 작을 수록 좋음). 반대로 c=10은 큰 shift에 해당하므로 lambda가 클수록 ARL0가 크게 나타난다.
+
+# Q9
+```{r}
+xewma.crit(l=0.1,L0=150,mu0=0)
+xewma.crit(l=0.5,L0=150,mu0=0)
+xewma.crit(l=0.1,L0=450,mu0=0)
+xewma.crit(l=0.5,L0=450,mu0=0)
+
+xewma.crit(l=0.1,L0=300,mu0=10)
+xewma.crit(l=0.5,L0=300,mu0=10)
+```
+true mean=0으로 설정하였다.
+a)Compare 1&2, 3&4, 5&6.
+1&2, 3&4를 비교하였을 때 같은 ARLO 값에서 lambda 값이 증가할수록 crit도 증가하였다. 
+그러나 5&6을 비교하면 mu0가 큰 상황에서
+같은 ARL0 값일 때 lambda가 증가할 때 crit은 감소하였다.
+그 이유는 mu0가 큰 경우 mean shift도 커진다고 생각하면
+큰 mean shift를 잘 detect하는 것은 lambda가 큰 경우고,
+따라서 같은 ARL0 값을 유지하려면 crit 값은 감소해야 한다(crit이 작으면 ARL0도 작아짐 효과+큰 shifting에서 lambda가 크면 ARL0 커짐=>상쇄)
+
+b)Compare 1&3, 2&4.
+같은 lambda 값에서, ARL0 값이 증가할수록 crit도 증가하였다. 이는 앞선 문제 Q8에서 논의한 바와 같이,
+Chart상에서 Limit Line이 상승하면 Chart가 signal하기까지 걸리는 시간이 증가하므로 ARL0는 증가한다. 따라서 crit과 ARL0는 양의 상관관계를 가지게 된다.

@@ -1,0 +1,58 @@
+---
+title: "326.212 Final Project: Part 1"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE, 
+                      message = FALSE, warning = FALSE)
+```
+
+```{r packages, include = FALSE}
+library(tidyverse)
+library(dplyr)
+```
+
+## 2014-10451 Baek Dae Hyun
+
+## Part 1
+
+### Q1
+
+```{r}
+#getwd()
+#dir.create("./data")
+```
+
+### Q2
+
+```{r}
+info<-read.csv("./data/Measurement_info.csv")
+item<-read.csv("./data/Measurement_item_info.csv")
+station<-read.csv("./data/Measurement_station_info.csv")
+```
+
+데이터는 현재 wd에서 상대경로를 통하여 1에서 만든 폴더 안에 들어가있는 상태이며, 이를 읽어들였다.
+
+### Q3
+
+```{r}
+data<-info%>%
+  full_join(item)%>%
+  full_join(station)
+```
+
+full_join을 이용해 info data에 item, station을 합쳤다.
+
+### Q4
+
+```{r}
+data = data %>%
+  dplyr::mutate(`Pollution level` = ifelse(Average.value<0,NA,ifelse(Average.value<=Good.Blue.,"Good(Blue)",         ifelse(Average.value<=Normal.Green.,"Normal(Green)",                          ifelse(Average.value<=Bad.Yellow.,"Bad(Yellow)",                        ifelse(Average.value<=Very.bad.Red.,"Very bad(Red)",NA))))))
+
+data%>%
+  dplyr::select(Item.name,Average.value,`Pollution level`)%>%
+  head()
+```
+
+mutate()로 Pollution level 변수를 선언, ifelse문을 여러번 반복하여 문제의 조건에 맞는 값을 나타내도록 하였다.

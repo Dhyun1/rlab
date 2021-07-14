@@ -1,0 +1,201 @@
+##Ch.2
+
+#working directory 설정
+getwd()		
+setwd("C:/Users/DaeHyun/Desktop/Exp Design/R")
+ex1 <- read.table("table2_1.txt",header=T)
+
+boxplot(ex1)
+
+
+#data 변수별로 저장
+ex.mod <- ex1$mod
+ex.unmod <- ex1$unmod
+
+hist(ex.mod)
+hist(ex.unmod)
+
+summary(ex1)
+
+x <- runif(20,0,5)
+y <- 3*x+rnorm(20)
+plot(x,y)
+lm.res <- lm(y~x)
+summary(lm.res)
+
+
+#data의 변수명을 '$' 사용하지 않고 바로 사용 가능하게 하는 법
+attach(ex1)
+mod
+unmod
+detach(ex1)
+attach(ex1)
+
+
+#두 그룹의 평균이 같은지에 대해 test(t-test)하기
+t.test(mod, unmod)	#등분산성 가정X, 2 sample t
+t.test(mod, unmod, var.equal=T)		#등분산성 가정O, 2 sample t
+t.test(mod, unmod, paired=T)		#등분산성 가정X, paired t
+
+##이 때, attach(ex1)을 해놨기 때문에 그냥 mod와 unmod를 사용하게 됩니다.
+##만약 attach를 돌려놓지 않고 위의 t-test 코드를 그대로 돌리면 돌아가지 않게 됩니다.
+
+detach(ex1)
+t.test(mod, unmod)		#이 코드는 오류가 나서 돌아가지 않습니다.
+t.test(ex1$mod, ex1$unmod)
+t.test(ex.mod, ex.unmod)	#앞에서 ex.mod와 ex.unmod를 정의했었죠?!
+attach(ex1)
+
+
+#두 그룹의 분산이 같은지에 대해 test(F-test)하기
+var.test(mod, unmod)
+
+##이 결과를 통해, 앞에서 평균에 대한 검정을 할 때
+##등분산성 가정을 할 수 있을지 아닐지를 알 수 있게 됩니다.
+
+
+#두 집단의 평균이 차이가 있는지에 대한 비모수적 검정(Wilcoxon test)
+wilcox.test(mod, unmod)
+wilcox.test(mod, unmod, paired=T)		#paired data의 형태인 경우
+
+
+
+##Ch.3
+
+#library 이용하기(install.packages를 이용하여 사용하고자 하는 패키지를 설치할 수 있습니다.)
+library(datasets)
+library(help=datasets)		#dataset에 대한 정보 알아보기
+ChickWeight			#dataset을 library로 불러옴으로써 ChickWeight라는 data가 만들어졌습니다.
+attach(ChickWeight)
+search()
+
+
+#예제 3.1에 앞에서 배운거 몇 개 해보기(power가 수치형 변수가 아니라 분류형 변수)
+ex3<-read.table("위치/Ex3_1.txt",header=T)
+ex3
+attach(ex3)
+summary(ex3)
+boxplot(Each~Power)
+
+
+#그룹별로 평균에 차이가 있는지 검정(ANOVA를 이용합니다.)
+anova(lm(Each~Power))			#그런데..결과에 Power의 df가 1이네요?! 뭔가 이상한데..
+ex3$Power <- as.factor(ex3$Power)	#분류형 변수는 factor로 저장을 해줘야 합니다.
+ex3$Power
+summary(ex3)
+
+detach(ex3)
+attach(ex3)
+boxplot(Each~Power)
+anova(lm(Each~Power))			#df가 3으로, 제대로 나오는군요. 굳굳
+
+
+#이 예제에서 fitting을 해봅시다.(즉, 각 Power에서의 평균들의 추정값을 확인)
+lm.ex3 <- lm(Each~Power)
+fitted(lm.ex3)
+names(lm.ex3)
+lm.ex3$fitted.values
+
+
+#모형적합성 검정
+qqnorm(resid(lm.ex3), datax=TRUE)		#정규성 가정을 확인하기 위해 normal Q-Q plot을 그립니다.
+qqline(resid(lm.ex3), datax=TRUE)		#가운데 직선을 그리는 코드입니다.
+
+##보통, 가운데 직선으로부터 많이 벗어나있지 않으면 정규성 가정에 크게 반하지 않는다고 얘기합니다.
+
+plot(fitted(lm.ex3),resid(lm.ex3))		#residuals~fitted values plot을 그림으로써, 등분산성 및 경향성의 유무를 확인합니다.
+abline(0,0)		#or abline(h=0)
+
+##fitted value에 따라 residual의 흩어진 정도가 다르거나 경향성이 보이면
+##등분산성과 독립성 가정이 성립하지 않을 가능성이 있습니다.
+
+summary(lm(Each~Power))
+
+
+#test하는 여러가지 방법
+pairwise.t.test(Each, Power, p.adj="bonferroni")	#2개의 그룹씩 테스트할 때
+oneway.test(Each~Power)					#등분산 가정 없이 테스트할 때
+oneway.test(Each~Power, var.equal=T)			#이 코드는 등분산 가정을 하였을 때입니다.(앞에서의 anova 결과와 같습니다.)
+pairwise.t.test(Each, Power, paired=T)			#pairwise인데 paired로 test하는 경우
+pairwise.t.test(Each, Power, pool.sd=F)			#pairwise인데 등분산 가정을 없앤 경우
+
+
+#등분산 가정 검정 방법
+bartlett.test(Each~Power)			#Bartlett's test를 진행합니다.
+
+
+#비모수적  ANOVA 검정방법
+kruskal.test(Each~Power)			#Kruskal test를 진행합니다.
+
+
+
+
+##Ch.4
+
+#예제 4.1 (p, 145)
+ex4 <-read.table("위치/Ex4_1.txt",header=T)
+attach(ex4)
+trt <- factor(press, labels=c("8500","8700","8900","9100"))	#as.factor(를 사용해도 됩니다.)
+block <- factor(batch, labels=c("1","2","3","4","5","6"))
+trt
+block
+xtabs(yield ~ trt+block)			#책에 나와있는 형태의 표가 완성됩니다!
+
+
+# Graphics for repeated measurements
+interaction.plot(block,trt, yield)		#block과 treatment 수준에 따른 yield의 평균을 그린 그래프를 보여줍니다.
+
+
+# Table 4.4 (With Block Effects)
+anova(lm(yield~ trt+block))			#block effect가 있다고 가정했을 때 ANOVA
+
+
+# Table 4.5 (Without Block Effects)
+anova(lm(yield~trt))				#block effect가 없다고 가정했을 때 ANOVA
+
+##block effect가 있다고 가정했을 때 ANOVA 결과에서 block에 대한 p-value가 0.005532로 매우 작으므로
+##없다고 가정하기는 아무래도 어려울 것 같습니다.
+
+
+# Multiple Comparison (Block Effect SS는 SSE에 pooling 되었는가? 확인해 볼 것)
+pairwise.t.test(yield, trt, p.adj="bonferroni")
+pairwise.t.test(yield, trt)
+
+lmex4 <- lm(yield~trt+block)			#모형 적합성 검정을 시작합니다!
+qqnorm(resid(lmex4), datax=TRUE)		#normal Q-Q plot을 그려, 정규성 검정을 합니다.
+qqline(resid(lmex4), datax=TRUE)
+
+plot(fitted(lmex4),resid(lmex4))		#등분산성 및 독립성 검정을 합니다.
+abline(h=0)
+
+plot(trt,resid(lmex4))
+plot(block,resid(lmex4))
+
+
+# Latin Square Design
+ex5 <-read.table("위치/Ex4_3.txt",header=T)
+attach(ex5)
+trt <- factor(form, labels=c("a","b","c","d", "e"))
+bmate <- factor(mate, labels=c("1","2","3","4","5"))
+boper <- factor(oper, labels=c("1","2","3","4","5"))
+
+detach(ex5)					#ex5의 형태가 바뀌었으므로 기존의 attach된 ex5를 없애고 새롭게 attach 해줍니다.
+attach(ex5)
+anova(lm(rate~trt+bmate+boper))			#다음은 앞에서 했던걸 그대로 다시 하는겁니다!
+lmex5 <- lm(rate~trt+bmate+boper)
+qqnorm(resid(lmex5), datax=TRUE)
+qqline(resid(lmex5), datax=TRUE)
+plot(fitted(lmex5),resid(lmex5))
+abline(h=0)
+plot(rate,resid(lmex5))
+abline(h=0)
+plot(trt,resid(lmex5))
+plot(bmate,resid(lmex5))
+plot(boper,resid(lmex5))
+
+
+# Graeco-Latin Square Design
+bassem <- factor(assem, labels=c("alpha","beta","gamma","delta","eta"))		#head(ex5)를 보게 되면, assem이라고 하여 그리스문자 이름으로
+#이루어진 변수가 있습니다. 이를 추가하여 Graeco-Latin Square Design으로
+anova(lm(rate~trt+bmate+boper+bassem))					#만들었습니다.
+

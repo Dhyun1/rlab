@@ -1,0 +1,701 @@
+---
+title: "Data mining LAB9"
+author: "Yonggab Kim"
+date: "12/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Chap.7 Moving beyond linearity
+
+```{r}
+library(ISLR)
+library(splines)
+```
+
+
+##### Dataset
+```{r}
+attach(Wage)
+```
+
+
+#### Polynomial Regression and Step Functions
+
+This syntax fits a linear model, using the lm() function, in order to predict
+wage using a fourth-degree polynomial in age: poly(age,4). The poly() command
+allows us to avoid having to write out a long formula with powers of age.
+
+```{r}
+fit <- lm(wage~poly(age,4),data=Wage)
+coef(summary(fit))
+```
+
+This does the same more compactly, using the cbind() function for building
+a matrix from a collection of vectors; any function call such as cbind() inside
+a formula also serves as a wrapper.
+```{r}
+fit_a <- lm(wage~cbind(age,age^2,age^3,age^4),data=Wage)
+```
+
+We now create a grid of values for age at which we want predictions, and
+then call the generic predict() function, specifying that we want standard
+errors as well.
+```{r}
+agelims <- range(age)
+age.grid <- seq(from=agelims[1],to=agelims[2])
+preds <- predict(fit,newdata=list(age=age.grid),se=TRUE)
+se.bands <- cbind(preds$fit+2*preds$se.fit,preds$fit-2*preds$se.fit)
+```
+
+Finally, we plot the data and add the fit from the degree-4 polynomial.
+```{r}
+plot(age,wage,xlim=agelims,cex=.5,col="darkgrey",main="Degree-4 Polynomial")
+lines(age.grid,preds$fit,lwd=2,col="blue")
+matlines(age.grid,se.bands,lwd=1,col="blue",lty=3)
+```
+
+- In performing a polynomial regression we must decide on the degree of
+the polynomial to use. One way to do this is by using hypothesis tests. 
+We now fit models ranging from linear to a degree-5 polynomial and seek to
+determine the simplest model which is sufficient to explain the relationship
+between wage and age.
+We use the anova() function, which performs an analysis of variance (ANOVA, using an F-test) in order to test the null hypothesis that a model M1 variance is sufficient to explain the data against the alternative hypothesis that a more complex M2 model is required.
+In order to use the anova() function, M1 and M2 must be nested models: the
+predictors in M1 must be a subset of the predictors in M2.
+In this case, we fit five different models and sequentially compare the simpler model to the more complex model.
+
+```{r}
+fit.1 <- lm(wage~age,data=Wage)
+fit.2 <- lm(wage~poly(age,2),data=Wage)
+fit.3 <- lm(wage~poly(age,3),data=Wage)
+fit.4 <- lm(wage~poly(age,4),data=Wage)
+fit.5 <- lm(wage~poly(age,5),data=Wage)
+anova(fit.1,fit.2,fit.3,fit.4,fit.5)
+```
+
+- The p-value comparing the linear Model 1 to the quadratic Model 2 is
+essentially zero, indicating that a linear fit is not sufficient. 
+- Similarly the p-value comparing the quadratic Model 2 to the cubic Model 3
+is very low (0.0017), so the quadratic fit is also insufficient.
+- The p-value comparing the cubic and degree-4 polynomials, Model 3 and Model 4, is approximately 5% while the degree-5 polynomial Model 5 seems unnecessary because its p-value is 0.37. 
+
+- Hence, either a cubic or a quartic polynomial appear to provide a reasonable fit to the data, but lower- or higher-order models are not justified.
+
+Next we consider the task of predicting whether an individual earns more
+than $250,000 per year. We proceed much as before, except that first we
+create the appropriate response vector, and then apply the glm() function
+using family="binomial" in order to fit a polynomial logistic regression
+model.
+
+```{r}
+fit <- glm(I(wage>250)~poly(age,4),data=Wage,family=binomial)
+```
+
+Note that we use the wrapper I() to create this binary response
+variable. The expression wage>250 evaluates to a logical variable
+containing TRUEs and FALSEs, which glm() coerces to binary by setting the
+TRUEs to 1 and the FALSEs to 0.
+
+Once again, we make predictions using the predict() function.
+```{r}
+preds <- predict(fit,newdata=list(age=age.grid),se=T)
+```
+
+```{r}
+pfit <- exp(preds$fit)/(1+exp(preds$fit))
+se.bands.logit <- cbind(preds$fit+2*preds$se.fit, preds$fit-2*preds$se.fit)
+se.bands <- exp(se.bands.logit)/(1+exp(se.bands.logit))
+```
+
+We have drawn the age values corresponding to the observations with wage
+values above 250 as gray marks on the top of the plot, and those with wage
+values below 250 are shown as gray marks on the bottom of the plot. 
+We used the jitter() function to jitter the age values a bit so that observations with the same age value do not cover each other up. This is often called a rug plot.
+
+```{r}
+plot(age,I(wage>250),xlim=agelims,type="n",ylim=c(0,.2))
+points(jitter(age), I((wage>250)/5),cex=.5,pch="|",col="darkgrey")
+lines(age.grid,pfit,lwd=2, col="blue")
+matlines(age.grid,se.bands,lwd=1,col="blue",lty=3)
+```
+
+In order to fit a step function, as discussed in Section 7.2, we use the
+cut() function.
+
+```{r}
+table(cut(age,4))
+fit <- glm(I(wage>250)~cut(age,4),data=Wage,family = "binomial")
+coef(summary(fit))
+
+lm.pred <- predict(fit, data.frame(age=age.grid),type="response",se=T)
+plot(age,I(wage>250),xlim=agelims,type="n",ylim=c(0,.2))
+points(jitter(age), I((wage>250)/5),cex=.5,pch="|",col="darkgrey")
+lines(age.grid, lm.pred$fit, col="darkgreen", lwd=2)
+lines(age.grid, lm.pred$fit +2*lm.pred$se,lty="dashed")
+lines(age.grid, lm.pred$fit -2*lm.pred$se,lty="dashed")
+```
+
+
+#### Splines
+In order to fit regression splines in R, we use the splines library. In Section 7.4, we saw that regression splines can be fit by constructing an appropriate matrix of basis functions. 
+
+The bs() function generates the entire matrix of basis functions for splines with the specified set of knots.By default, cubic splines are produced. Fitting wage to age using a regression spline is simple:
+
+```{r}
+library(splines)
+
+fit <- lm(wage~bs(age,knots=c(25,40,60)),data=Wage)
+pred <- predict(fit,newdata=list(age=age.grid),se=T)
+plot(age,wage,col="gray")
+lines(age.grid,pred$fit,lwd=2)
+lines(age.grid,pred$fit+2*pred$se,lty="dashed")
+lines(age.grid,pred$fit-2*pred$se,lty="dashed")
+```
+
+In order to fit a natural spline, we use the ns() function. 
+Here, we fit a natural spline with four degrees of freedom.
+
+```{r}
+plot(age,wage,col="gray")
+lines(age.grid,pred$fit,lwd=2)
+lines(age.grid,pred$fit+2*pred$se,lty="dashed")
+lines(age.grid,pred$fit-2*pred$se,lty="dashed")
+
+fit2 <- lm(wage~ns(age,df=4),data=Wage)
+pred2 <- predict(fit2,newdata=list(age=age.grid),se=T)
+lines(age.grid, pred2$fit,col="red",lwd=2)
+lines(age.grid, pred2$fit+2*pred$se,lty="dashed",col="red")
+lines(age.grid, pred2$fit-2*pred$se,lty="dashed",col="red")
+
+```
+
+As with the bs() function, we could instead specify the knots directly using
+the knots option.
+In order to fit a smoothing spline, we use the smooth.spline() function.
+
+```{r}
+plot(age,wage,xlim=agelims,cex=.5,col="darkgrey")
+title("Smoothing Spline")
+fit <- smooth.spline(age,wage,df=16)
+fit2 <- smooth.spline(age,wage,cv=TRUE)
+fit2$df
+lines(fit,col="red",lwd=2)
+lines(fit2,col="blue",lwd=2)
+legend("topright",legend=c("16 DF","6.8 DF"),col=c("red","blue"),lty=1,lwd=2,cex=.8)
+
+```
+
+In order to perform local regression, we use the loess() function.
+
+```{r}
+plot(age,wage,xlim=agelims,cex=.5,col="darkgrey")
+title("Local Regression")
+fit <- loess(wage~age,span=.1,data=Wage)
+fit2 <- loess(wage~age,span=.75,data=Wage)
+lines(age.grid,predict(fit,data.frame(age=age.grid)),col="red",lwd=2)
+lines(age.grid,predict(fit2,data.frame(age=age.grid)),col="blue",lwd=2)
+legend("topright",legend=c("Span=0.1","Span=0.75"),col=c("red","blue"),lty=1,lwd=2,cex=.8)
+```
+
+#### Generalized Additive Models (GAMs)
+
+```{r}
+gam1 <- lm(wage~ns(year,4)+ns(age,5)+education,data=Wage)
+```
+
+The s() function, which is part of the gam library, is used to indicate that
+we would like to use a smoothing spline. We specify that the function of
+year should have 4 degrees of freedom, and that the function of age will
+have 5 degrees of freedom. Since education is qualitative, we leave it as is,
+and it is converted into four dummy variables. We use the gam() function in
+order to fit a GAM using these components.
+
+```{r}
+library(gam)
+gam.m3 <- gam(wage~s(year,4)+s(age,5)+education,data=Wage)
+par(mfrow=c(1,3))
+plot(gam.m3, se=TRUE,col="blue")
+```
+
+even though gam1 is linear model, it can be treated as gam object and plotted as plot.gam()
+```{r}
+plot.Gam(gam1, se=TRUE, col="red")
+```
+
+
+### Chap.8 Tree-based methods
+
+
+#### Fitting classification Trees
+
+##### Data 
+```{r}
+library(tree)
+library(ISLR)
+attach(Carseats)
+High=ifelse(Sales<=8,"No","Yes")
+Carseats=data.frame(Carseats,High)
+```
+
+The summary() function lists the variables that are used as internal nodes
+in the tree, the number of terminal nodes, and the (training) error rate.
+
+```{r}
+tree.carseats <- tree(High~.-Sales,Carseats)
+summary(tree.carseats)
+```
+
+One of the most attractive properties of trees is that they can be
+graphically displayed. We use the plot() function to display the tree structure, and the text() function to display the node labels. The argument
+pretty=0 instructs R to include the category names for any qualitative predictors,rather than simply displaying a letter for each category.
+
+```{r}
+plot(tree.carseats)
+text(tree.carseats,pretty=0,pch = 0.3)
+```
+
+If we just type the name of the tree object, R prints output corresponding
+to each branch of the tree
+```{r}
+tree.carseats
+```
+
+In order to properly evaluate the performance of a classification tree on
+these data, we must estimate the test error rather than simply computing
+the training error. We split the observations into a training set and a test
+set, build the tree using the training set, and evaluate its performance on
+the test data. The predict() function can be used for this purpose.
+
+```{r}
+set.seed(1)
+train <- sample(1:nrow(Carseats), 200)
+Carseats.test <- Carseats[-train,]
+High.test <- High[-train]
+tree.carseats <- tree(High~.-Sales,Carseats,subset=train)
+tree.pred <- predict(tree.carseats,Carseats.test,type="class")
+table(tree.pred, High.test)
+(Accuracy = (84+44)/200)
+```
+
+Next, we consider whether pruning the tree might lead to improved
+results. The function cv.tree() performs cross-validation in order to
+determine the optimal level of tree complexity; cost complexity pruning
+is used in order to select a sequence of trees for consideration.
+We use the argument FUN=prune.misclass in order to indicate that we want the
+classification error rate to guide the cross-validation and pruning process,
+rather than the default for the cv.tree() function, which is deviance. 
+Note that, despite the name, dev corresponds to the cross-validation error
+rate in this instance.
+
+```{r}
+set.seed(1)
+cv.carseats <- cv.tree(tree.carseats,FUN=prune.misclass)
+cv.carseats
+```
+```{r}
+par(mfrow=c(1,2))
+plot(cv.carseats$size,cv.carseats$dev,type="b")
+plot(cv.carseats$k,cv.carseats$dev,type="b")
+```
+We now apply the prune.misclass() function in order to prune the tree to 
+obtain the four-node tree.
+
+```{r}
+prune.carseats=prune.misclass(tree.carseats,best=6)
+plot(prune.carseats)
+text(prune.carseats,pretty=0)
+```
+How well does this pruned tree perform on the test data set? Once again,
+we apply the predict() function.
+
+```{r}
+tree.pred=predict(prune.carseats,Carseats.test,type="class")
+table(tree.pred,High.test)
+(86+49)/200
+```
+
+#### Fitting Regression Trees
+
+```{r}
+library(MASS)
+set.seed(1)
+train = sample(1:nrow(Boston), nrow(Boston)/2)
+tree.boston=tree(medv~.,Boston,subset=train)
+summary(tree.boston)
+```
+```{r}
+plot(tree.boston)
+text(tree.boston,pretty=0,pch = 0.5)
+```
+```{r}
+cv.boston=cv.tree(tree.boston)
+plot(cv.boston$size,cv.boston$dev,type='b')
+```
+```{r}
+prune.boston=prune.tree(tree.boston,best=5)
+plot(prune.boston)
+text(prune.boston,pretty=0)
+```
+```{r}
+yhat=predict(tree.boston,newdata=Boston[-train,])
+boston.test=Boston[-train,"medv"]
+plot(yhat,boston.test)
+abline(0,1)
+mean((yhat-boston.test)^2)
+```
+
+
+#### - Bagging 
+
+Here we apply bagging and random forests to the Boston data, using the
+randomForest package in R.Recall that bagging is simply a special case of
+a random forest with m = p.
+
+```{r}
+library(randomForest)
+set.seed(1)
+bag.boston=randomForest(medv~.,data=Boston,subset=train,mtry=13,importance=TRUE)
+bag.boston
+```
+The argument mtry=13 indicates that all 13 predictors should be considered
+for each split of the tree. In other words, that bagging should be done. How
+well does this bagged model perform on the test set?
+
+```{r}
+yhat.bag = predict(bag.boston,newdata=Boston[-train,])
+plot(yhat.bag, boston.test)
+abline(0,1)
+mean((yhat.bag-boston.test)^2)
+```
+The test setMSE associated with the bagged regression tree is 23.59, which is
+smaller than that obtained using an optimally-pruned single tree. We could change the number of trees grown by randomForest() using the ntree argument:
+```{r}
+bag.boston=randomForest(medv~.,data=Boston,subset=train,mtry=13, ntree=25)
+yhat.bag = predict(bag.boston,newdata=Boston[-train,])
+mean((yhat.bag-boston.test)^2)
+```
+
+#### - Random Forests
+Growing a random forest proceeds in exactly the same way, except that
+we use a smaller value of the mtry argument. By default, randomForest()
+uses p/3 variables when building a random forest of regression trees, and
+sqrt(p) variables when building a random forest of classification trees.
+Here we use mtry = 6.
+
+```{r}
+set.seed(1)
+rf.boston=randomForest(medv~.,data=Boston,subset=train,mtry=6,importance=TRUE)
+yhat.rf = predict(rf.boston,newdata=Boston[-train,])
+mean((yhat.rf-boston.test)^2)
+```
+
+```{r}
+importance(rf.boston)
+```
+
+Two measures of variable importance are reported. The former is based
+upon the mean decrease of accuracy in predictions on the out of bag samples
+when a given variable is excluded from the model. 
+
+The latter is a measure of the total decrease in node impurity that results from splits over that variable, averaged over all trees.
+```{r}
+varImpPlot(rf.boston)
+```
+
+Here we use the gbm package, and within it the gbm() function, to fit boosted
+regression trees to the Boston data set. We run gbm() with the option
+distribution="gaussian" since this is a regression problem; if it were a binary classification problem, we would use distribution="bernoulli". The
+argument n.trees=5000 indicates that we want 5000 trees, and the option
+interaction.depth=4 limits the depth of each tree.
+
+#### - Boosting
+
+```{r}
+library(gbm)
+set.seed(1)
+boost.boston=gbm(medv~.,data=Boston[train,],distribution="gaussian",n.trees=5000,interaction.depth=4)
+```
+```{r}
+summary(boost.boston)
+```
+We see that rm and lstat are by far the most important variables. We can
+also produce partial dependence plots for these two variables. These plots illustrate the marginal effect of the selected variables on the response after integrating out the other variables. In this case, as we might expect, median house prices are increasing with rm and decreasing with lstat.
+```{r}
+par(mfrow=c(1,2))
+plot(boost.boston,i="rm")
+plot(boost.boston,i="lstat")
+```
+We now use the boosted model to predict medv on the test set:
+```{r}
+yhat.boost=predict(boost.boston,newdata=Boston[-train,],n.trees=5000)
+mean((yhat.boost-boston.test)^2)
+```
+The test MSE obtained is 18.84; superior to the test MSE for bagging and RF. 
+
+
+
+
+### Chap.9 Support Vector Machines
+
+#### Support Vector Classifier
+
+- The e1071 library contains implementations for a number of statistical
+learning methods. In particular, the svm() function can be used to fit a
+svm() support vector classifier when the argument kernel="linear" is used.
+
+- When the cost argument is small, then the margins will be wide and many support vectors will be on the margin or will violate the margin. When the cost argument is large, then the margins will be narrow and there will be few support vectors on the margin or violating the margin.
+
+- We now use the svm() function to fit the support vector classifier for a
+given value of the cost parameter. Here we demonstrate the use of this
+function on a two-dimensional example so that we can plot the resulting
+decision boundary. We begin by generating the observations, which belong
+to two classes, and checking whether the classes are linearly separable.
+
+```{r}
+library(e1071)
+set.seed(1)
+x <- matrix(rnorm(20*2), ncol=2)
+y <- c(rep(-1,10), rep(1,10))
+x[y==1,]=x[y==1,] + 1
+plot(x, col=(3-y),pch = 19)
+```
+They are not. Next, we fit the support vector classifier. Note that in order
+for the svm() function to perform classification (as opposed to SVM-based
+regression), we must encode the response as a factor variable. We now
+create a data frame with the response coded as a factor.
+
+```{r}
+dat <- data.frame(x=x, y=as.factor(y))
+
+svmfit <- svm(y~., data=dat, kernel="linear", cost=10, scale=FALSE)
+print(svmfit)
+```
+The argument scale=FALSE tells the svm() function not to scale each feature
+to have mean zero or standard deviation one; depending on the application,
+one might prefer to use scale=TRUE.
+
+We can now plot the support vector classifier obtained:
+```{r}
+plot(svmfit, dat)
+```
+
+Note that the two arguments to the plot.svm() function are the output
+of the call to svm(), as well as the data used in the call to svm(). The
+region of feature space that will be assigned to the -1 class is shown in
+light blue, and the region that will be assigned to the +1 class is shown in
+purple. 
+
+The decision boundary between the two classes is linear (because we
+used the argument kernel="linear"), though due to the way in which the
+plotting function is implemented in this library the decision boundary looks somewhat jagged in the plot. The support vectors are plotted as crosses
+and the remaining observations are plotted as circles; we see here that there
+are seven support vectors. We can determine their identities as follows:
+
+
+```{r}
+svmfit$index 
+```
+
+Plot more elaborately using grid
+```{r}
+make.grid <- function(x, n = 75){
+  grange = apply(x, 2, range)
+  x1 = seq(from = grange[1,1],to=grange[2,1],length=n)
+  x2 = seq(from = grange[1,2],to=grange[2,2],length=n)
+  expand.grid(x.1 = x1, x.2 = x2)
+}
+xgrid <- make.grid(x)
+ygrid <- predict(svmfit,xgrid)
+plot(xgrid,col =c("red","blue")[as.numeric(ygrid)],pch = 20, cex =.2)
+points(x, col=(3-y),pch = 19)
+points(x[svmfit$index,],pch =5, cex=2)
+```
+
+We can obtain some basic information about the support vector classifier
+fit using the summary() command:
+```{r}
+# vectors inside decisio boundary
+summary(svmfit)
+```
+
+This tells us, for instance, that a linear kernel was used with cost=10, and
+that there were seven support vectors, four in one class and three in the
+other.
+What if we instead used a smaller value of the cost parameter?
+```{r}
+svmfit=svm(y~., data=dat, kernel="linear", cost=0.1,scale=FALSE)
+plot(svmfit, dat)
+summary(svmfit)
+svmfit$index
+```
+
+Now that a smaller value of the cost parameter is being used, we obtain a
+larger number of support vectors, because the margin is now wider.
+
+The e1071 library includes a built-in function, tune(), to perform cross
+validation. 
+
+By default, tune() performs ten-fold cross-validation on a set
+of models of interest. 
+
+In order to use this function, we pass in relevant information about the set of models that are under consideration. The following command indicates that we want to compare SVMs with a linear kernel, using a range of values of the cost parameter.
+```{r}
+set.seed(1)
+tune.out=tune(svm,y~.,data=dat,kernel="linear",ranges=list(cost=c(0.001, 0.01, 0.1, 1,5,10,100)))
+```
+
+We can easily access the cross-validation errors for each of these models
+using the summary() command:
+```{r}
+summary(tune.out)
+```
+```{r}
+bestmod <- tune.out$best.model
+summary(bestmod)
+```
+
+The predict() function can be used to predict the class label on a set of
+test observations, at any given value of the cost parameter. We begin by
+generating a test data set.
+
+```{r}
+set.seed(10)
+xtest <- matrix(rnorm(20*2), ncol=2)
+ytest <- sample(c(-1,1), 20, rep=TRUE)
+xtest[ytest==1,]=xtest[ytest==1,] + 1
+testdat <- data.frame(x=xtest, y=as.factor(ytest))
+```
+
+Now we predict the class labels of these test observations. Here we use the
+best model obtained through cross-validation in order to make predictions.
+
+```{r}
+ypred <- predict(bestmod,testdat)
+table(predict=ypred, truth=testdat$y)
+```
+
+Thus, with this value of cost, 17 of the test observations are correctly
+classified. What if we had instead used cost=0.01?
+
+```{r}
+svmfit <- svm(y~., data=dat, kernel="linear", cost=.01,scale=FALSE)
+ypred=predict(svmfit,testdat)
+table(predict=ypred, truth=testdat$y)
+```
+In this case 3 additional observations are misclassified.
+
+Now consider a situation in which the two classes are linearly separable.
+Then we can find a separating hyperplane using the svm() function.
+We first further separate the two classes in our simulated data so that they are linearly separable:
+```{r}
+x[y==1,]=x[y==1,]+0.5
+plot(x, col=(y+5)/2, pch=19)
+```
+
+Now the observations are just linearly separable. We fit the support vector classifier and plot the resulting hyperplane, using a very large value
+of cost so that no observations are misclassified.
+
+```{r}
+dat <- data.frame(x=x,y=as.factor(y))
+svmfit <- svm(y~., data=dat, kernel="linear", cost=1e5)
+summary(svmfit)
+plot(svmfit, dat)
+```
+
+No training errors were made and only three support vectors were used.
+
+However, we can see from the figure that the margin is very narrow (because
+the observations that are not support vectors, indicated as circles, are very
+close to the decision boundary). It seems likely that this model will perform
+poorly on test data. We now try a smaller value of cost:
+
+```{r}
+svmfit=svm(y~., data=dat, kernel="linear", cost=1)
+summary(svmfit)
+plot(svmfit,dat)
+```
+
+In order to fit an SVM using a non-linear kernel, we once again use the svm()
+function. However, now we use a different value of the parameter kernel.
+To fit an SVM with a polynomial kernel we use kernel="polynomial", and
+to fit an SVM with a radial kernel we use kernel="radial".
+
+```{r}
+set.seed(1)
+x <- matrix(rnorm(200*2), ncol=2)
+x[1:100,]=x[1:100,]+2
+x[101:150,]=x[101:150,]-2
+y <- c(rep(1,150),rep(2,50))
+dat=data.frame(x=x,y=as.factor(y))
+plot(x, col=y)
+```
+The data is randomly split into training and testing groups. We then fit
+the training data using the svm() function with a radial kernel and gamma = 1:
+
+```{r}
+set.seed(2)
+train <- sample(200,100)
+svmfit <- svm(y~., data=dat[train,], kernel="radial",  gamma=1, cost=1)
+plot(svmfit, dat[train,])
+```
+The plot shows that the resulting SVM has a decidedly non-linear
+boundary. The summary() function can be used to obtain some
+information about the SVM fit:
+
+```{r}
+summary(svmfit)
+```
+
+We can see from the figure that there are a fair number of training errors
+in this SVM fit. If we increase the value of cost, we can reduce training errors. However, this comes at the price of a more irregular
+decision boundary that seems to be at risk of overfitting the data.
+
+```{r}
+svmfit <- svm(y~., data=dat[train,], kernel="radial",gamma=1,cost=1e5)
+plot(svmfit,dat[train,])
+```
+We can perform cross-validation using tune() to select the best choice of
+gamma and cost for an SVM with a radial kernel:
+
+```{r}
+set.seed(1)
+tune.out <- tune(svm, y~., data=dat[train,], kernel="radial", ranges = list(cost=c(0.01,0.1,1,10,100,1000),gamma=c(0.5,1,2,3,4,5)))
+summary(tune.out)
+```
+
+Therefore, the best choice of parameters involves cost=1 and gamma=0.5. We
+can view the test set predictions for this model by applying the predict()
+function to the data. Notice that to do this we subset the dataframe dat
+using -train as an index set.
+
+```{r}
+plot(tune.out$best.model,dat[train,])
+table(true=dat[-train,"y"], pred=predict(tune.out$best.model,newdata=dat[-train,]))
+
+```
+
+
+
+```{r}
+svmfit.opt <- svm(y~., data=dat[train,], kernel="radial",gamma=0.5, cost=1,decision.values=T)
+fitted <- attributes(predict(svmfit.opt,dat[train,],decision.values=TRUE))$decision.values
+```
+
+Now we can produce the ROC plot.
+```{r}
+library(pROC)
+roc <- roc(dat[train,"y"],fitted) 
+plot(roc)
+```
+However, these ROC curves are all on the training data. We are really
+more interested in the level of prediction accuracy on the test data. 
+
+```{r}
+fitted_test <- attributes(predict(svmfit.opt,dat[-train,],decision.values=T))$decision.values
+
+plot(roc(dat[train,"y"],fitted_test))
+```

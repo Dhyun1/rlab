@@ -1,0 +1,65 @@
+# 6-7주차 실습 : QDA
+
+# 1. 패키지 설치 및 불러오기 
+install.packages("ISLR")
+install.packages("MASS")
+install.packages("pROC")
+
+library(ISLR)
+library(MASS)
+library(pROC)
+
+# 2. 데이터 불러오기
+# Smarket: S&P Stock Market Data
+# reference: https://rdrr.io/cran/ISLR/man/Smarket.html
+
+# Check the variable names
+names(Smarket)
+
+# Check the dimension (n by p)
+dim(Smarket)
+
+# Summary the data
+summary(Smarket)
+
+# Pairwise Scattet plot
+pairs(Smarket)
+
+# Correlation matrix for continuous variables
+cor(Smarket[,-9])
+
+# attach 
+attach(Smarket)
+
+# Plotting the Volume against sample index
+plot(Volume)
+
+# Train set & Test set
+train <- (Year<2005)
+Smarket.2005 <- Smarket[!train,] # Test set
+dim(Smarket.2005)
+# test Y 
+Direction.2005 <- Direction[!train]
+
+# Fitting QDA model
+qda.fit <- qda(Direction~Lag1+Lag2,data=Smarket,subset=train)
+qda.fit
+
+qda.class <- predict(qda.fit,Smarket.2005)$class
+qda.class
+table(qda.class,Direction.2005)
+# Test accuracy
+mean(qda.class==Direction.2005)*100
+
+# For ROC curve, save probability of Up
+library(pROC)
+qda.pred <- predict(qda.fit, Smarket.2005)
+
+qda.roc<-roc(Direction.2005,qda.pred$posterior[,2])
+
+qda.roc <-qda.roc[c("specificities","sensitivities","thresholds","auc")]
+
+plot(y=qda.roc$sensitivities,x=(1-qda.roc$specificities),col = "darkgreen",type="l", main="ROC curve of QDA")
+
+# AUC(Area Under the Curve) = 0.562
+qda.roc$auc

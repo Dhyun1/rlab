@@ -1,0 +1,569 @@
+---
+title: "SPC_HW1"
+author: "2014-10451"
+date: "2020년 10월 7일"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Question 6.6 (a)
+```{r}
+table_6e3<-matrix(c(
+  2.5,0.5,2.0,-1.0,1.0,-1.0,0.5,1.5,0.5,-1.5,
+  0.0,0.0,0.5,1.0,1.5,1.0,-1.0,1.0,1.5,-1.0,
+  1.5,1.0,1.0,-1.0,0.0,-1.5,-1.0,-1.0,1.0,-1.0,
+  0.0,0.5,-2.0,0.0,-1.0,1.5,-1.5,0.0,-2.0,-1.5,
+  0.0,0.0,0.0,-0.5,0.5,1.0,-0.5,-0.5,0.0,0.0,
+  1.0,-0.5,0.0,0.0,0.0,0.5,-1.0,1.0,-2.0,1.0,
+  1.0,-1.0,-1.0,-1.0,0.0,1.5,0.0,1.0,0.0,0.0,
+  0.0,-1.5,-0.5,1.5,0.0,0.0,0.0,-1.0,0.5,-0.5,
+  -2.0,-1.5,1.5,1.5,0.0,0.0,0.5,1.0,0.0,1.0,
+  -0.5,3.5,0.0,-1.0,-1.5,-1.5,-1.0,-1.0,1.0,0.5,
+  0.0,1.5,0.0,0.0,2.0,-1.5,0.5,-0.5,2.0,-1.0,
+  0.0,-2.0,-0.5,0.0,-0.5,2.0,1.5,0.0,0.5,-1.0,
+  -1.0,-0.5,-0.5,-1.0,0.0,0.5,0.5,-1.5,-1.0,-1.0,
+  0.5,1.0,-1.0,-0.5,-2.0,-1.0,-1.5,0.0,1.5,1.5,
+  1.0,0.0,1.5,1.5,1.0,-1.0,0.0,1.0,-2.0,-1.5),
+  nrow=15,ncol=10,byrow=T)
+colnames(table_6e3) <- paste0("X",1:10)
+n <- 10
+mu0 <- 0
+c4_10 <- 0.9727 
+
+s_bar <- mean(apply(table_6e3,1,sd)) 
+sigma0_hat <- s_bar/c4_10 
+UCL_xbar <- mu0 + 3*sigma0_hat/sqrt(n) 
+CL_xbar <- mu0
+LCL_xbar <- mu0 - 3*sigma0_hat/sqrt(n)
+
+plot(apply(table_6e3,1,mean), type="b", pch=20, ylab="X bar", ylim=c(-1.5,1.5))
+abline(h=UCL_xbar, lty="dotted")
+abline(h=CL_xbar, lty="dotted")
+abline(h=LCL_xbar, lty="dotted")
+
+UCL_s <- s_bar + 3*sqrt(1-c4_10^2)*sigma0_hat
+CL_s <- s_bar 
+LCL_s <- s_bar - 3*sqrt(1-c4_10^2)*sigma0_hat
+plot(apply(table_6e3,1,sd), type="b", pch=20, ylab="s", ylim=c(0,2))
+abline(h=UCL_s, lty="dotted")
+abline(h=CL_s, lty="dotted")
+abline(h=LCL_s, lty="dotted")
+```
+모든 sample index에 대하여 sample 특성치 X_bar, s가 [LCL,UCL] 구간을 벗어나지 않으므로
+In-Control 상태라고 볼 수 있다.
+
+# Question 6.6 (b)
+```{r}
+rg <- function(x){
+  return(max(x)-min(x))
+}
+
+d2_10 <- 3.078
+d3_10 <- 0.797
+R_bar <- mean(apply(table_6e3,1,rg))
+sigma0_hat_R <- R_bar/d2_10
+
+UCL_xbar_R <- mu0 + 3*sigma0_hat_R/sqrt(n)
+CL_xbar_R <- mu0
+LCL_xbar_R <- mu0 - 3*sigma0_hat_R/sqrt(n)
+plot(apply(table_6e3,1,mean), type="b", pch=20, ylab="X bar", ylim=c(-1.5,1.5))
+abline(h=UCL_xbar_R, lty="dotted")
+abline(h=CL_xbar_R, lty="dotted")
+abline(h=LCL_xbar_R, lty="dotted")
+```
+n=10일 때 R chart는 s chart보다 약 85%의 efficiency를 갖는다고 알려져있다. 위 r chart
+역시 문제 (a)에서 구한 s chart와 같이 공정이 In-control 상태에 있음을 나타내며, 한편
+chart의 개형은 s chart와는 다소 다르다고 볼 수 있다.
+
+# Question 6.6 (c)
+```{r}
+alpha=0.0027
+s2_bar <- mean(apply(table_6e3,1,var))
+
+UCL_s2 <-qchisq(1-alpha/2,df=n-1)*s2_bar/(n-1)
+CL_s2 <-s2_bar
+LCL_s2 <-qchisq(alpha/2,df=n-1)*s2_bar/(n-1)
+
+plot(apply(table_6e3,1,var), type="b", pch=20, ylab="s2", ylim=c(0,4))
+abline(h=UCL_s2, lty="dotted")
+abline(h=CL_s2, lty="dotted")
+abline(h=LCL_s2, lty="dotted")
+```
+s2를 sample index의 특성치로 이용하는 경우, 즉 w=s2인 경우 target(center line)은 mu_w=mu_s2=sigma0^2이다. 여기서, sigma0^2는 unknown이므로 추정치로 s2_bar을 plug-in하여 
+CL=s2_bar이다.
+한편, UCL과 LCL을 구하기 위해서는 아래 식을 풀면
+구할 수 있고, 구한 결과는 코드에 나와있다.
+alpha = Pr(s2 in [LCL,UCL] given X ~ NID(mu0,sigma0^2)) 
+
+plotting 결과 s chart와 비교해 공정이 In-control임을 보여주며, 개형이 거의 비슷함을 알 수 있다. 따라서 산포에 대한 특성치를 분석하고자 하는 경우 R과 s chart만 이용하면 충분할 것으로 보인다.
+
+# Question 6.9 (a)
+```{r}
+table_6e4 <- matrix(c(138.1,110.8,138.7,137.4,125.4,
+149.3,142.1,105.0,134.0,92.3,
+115.9,135.6,124.2,155.0,117.4,
+118.5,116.5,130.2,122.6,100.2,
+108.2,123.8,117.1,142.4,150.9,
+102.8,112.0,135.0,135.0,145.8,
+120.4,84.3,112.8,118.5,119.3,
+132.7,151.1,124.0,123.9,105.1,
+136.4,126.2,154.7,127.1,173.2,
+135.0,115.4,149.1,138.3,130.4,
+139.6,127.9,151.1,143.7,110.5,
+125.3,160.2,130.4,152.4,165.1,
+145.7,101.8,149.5,113.3,151.8,
+138.6,139.0,131.9,140.2,141.1,
+110.1,114.6,165.1,113.8,139.6,
+145.2,101.0,154.6,120.2,117.3,
+125.9,135.3,121.5,147.9,105.0,
+129.7,97.3,130.5,109.0,150.5,
+123.4,150.0,161.6,148.4,154.2,
+144.8,138.3,119.6,151.8,142.7),
+nrow=20, ncol=5, byrow="T")
+summary(table_6e4)
+n <- 5
+d2_5 <- 2.326
+d3_5 <- 0.864
+
+R_bar <- mean(apply(table_6e4,1,rg))
+sigma0_hat_R <- R_bar/d2_5
+x_barbar <-mean(apply(table_6e4,1,mean))
+
+UCL_xbar <- x_barbar + 3*(sigma0_hat_R)/sqrt(n)
+CL_xbar <- x_barbar
+LCL_xbar <- x_barbar - 3*(sigma0_hat_R)/sqrt(n)
+
+plot(apply(table_6e4,1,mean), type="b", pch=20, ylab="X bar", ylim=c(90,170))
+abline(h=UCL_xbar, lty="dotted")
+abline(h=CL_xbar, lty="dotted")
+abline(h=LCL_xbar, lty="dotted")
+
+UCL_R <- R_bar + 3*R_bar*d3_5/d2_5
+CL_R <- R_bar
+LCL_R <- max((R_bar-3*R_bar*d3_5/d2_5), 0)
+
+plot(apply(table_6e4,1,rg), type="b", pch=20, ylab="R", ylim=c(-10,180))
+abline(h=UCL_R, lty="dotted")
+abline(h=CL_R, lty="dotted")
+abline(h=LCL_R, lty="dotted")
+```
+위 문제에서는 mu0, sigma0 모두 unknown이므로 각각 R_bar/d2, x_barbar 로 plug in하였다. x_bar chart, R chart 
+둘다 모든 sample에서 특성치가 각 특성치에 대한 [LCL,UCL]을 벗어나지 않으므로 공정은 In Control 상태이다.
+
+# Question 6.9 (b)
+```{r}
+table_6e5 <- matrix(c(131.0,184.8,182.2,143.3,212.8,
+181.3,193.2,180.7,169.1,174.3,
+154.8,170.2,168.4,202.7,174.4,
+157.5,154.2,169.1,142.2,161.9,
+216.3,174.3,166.2,155.5,184.3,
+186.9,180.2,149.2,175.2,185.0,
+167.8,143.9,157.5,171.8,194.9,
+178.2,186.7,142.4,159.4,167.6,
+162.6,143.6,132.8,168.9,177.2,
+172.1,191.7,203.4,150.4,196.3),
+nrow=10, ncol=5, byrow=T)
+
+plot(apply(table_6e5,1,mean), type="b", pch=20, ylab="X bar", ylim=c(90,200))
+abline(h=UCL_xbar, lty="dotted")
+abline(h=CL_xbar, lty="dotted")
+abline(h=LCL_xbar, lty="dotted")
+
+plot(apply(table_6e5,1,rg), type="b", pch=20, ylab="R", ylim=c(-10,180))
+abline(h=UCL_R, lty="dotted")
+abline(h=CL_R, lty="dotted")
+abline(h=LCL_R, lty="dotted")
+```
+new sample에 대하여 만일 공정이 In control 상태라면 기존 (a)에서 구한 LCL, CL, UCL 구간 안 또는 근처 sample 특성치가 분포하여야 한다(LCL,  UCL은 sample에 따라 달라지는 값이므로 new sample을 고려하기 전과 비교할 때 정확히 같지는 않더라도 비슷할 것) 그러나, x_bar chart를 보면 new sample의 x_bar 특성치들은 전체적으로 상방 이동하여 평균 모수 mu0 -> mu1(>mu0)으로 shifting된 것으로 보인다. 따라서, new sample을 관찰할 때 이 공정은 In control 상태라고 볼 수 없다. 한편, R chart는 new sample의 R 특성치가 기존 LCL, UCL 사이에 들어가는 것으로 보아 산포에 관련한 shifting은 없다고 생각된다.
+
+# Question 6.9 (c)
+```{r}
+table_6e6 <- matrix(c(131.5,143.1,118.5,103.2,121.6,111.0,127.3,110.4,91.0,143.9,
+129.8,98.3,134.0,105.1,133.1,
+145.2,132.8,106.1,131.0,99.2,
+114.6,111.0,108.8,177.5,121.6,
+125.2,86.4,64.4,137.1,117.5,
+145.9,109.5,84.9,129.8,110.6,
+123.6,114.0,135.4,83.2,107.6,
+85.8,156.3,119.7,96.2,153.0,
+107.4,148.7,127.4,125.0,127.5),
+nrow=10,ncol=5,byrow="T")
+
+plot(apply(table_6e6,1,mean), type="b", pch=20, ylab="X bar", ylim=c(90,200))
+abline(h=UCL_xbar, lty="dotted")
+abline(h=CL_xbar, lty="dotted")
+abline(h=LCL_xbar, lty="dotted")
+
+plot(apply(table_6e6,1,rg), type="b", pch=20, ylab="R", ylim=c(-10,180))
+abline(h=UCL_R, lty="dotted")
+abline(h=CL_R, lty="dotted")
+abline(h=LCL_R, lty="dotted")                
+```
+
+# Question 6.57
+```{r}
+table_4e8 <- matrix(c(
+  81,56,82,
+  112,73,66,
+  108,62,76,
+  95,61,66,
+  111,68,78,
+  98,65,71,
+  98,64,84,
+  115,72,61,
+  112,72,77,
+  103,63,74,
+  117,72,59,
+  103,71,85,
+  100,65,64,
+  105,64,71,
+  100,71,85,
+  115,66,65,
+  113,84,78,
+  107,71,76,
+  117,74,90,
+  96,68,81,
+  107,60,72,
+  90,57,89,
+  119,69,61,
+  85,59,77,
+  107,70,83),
+  nrow=25,ncol=3,byrow="T")
+colnames(table_4e8) <- c("Systolic", "Diastolic","PulseRate")
+
+n=25
+d2_2 <- 1.128
+d3_2 <- 0.853
+
+MR <- abs(table_4e8[2:n,"Systolic"] - table_4e8[1:(n-1),"Systolic"])
+MR_bar <- mean(MR)
+UCL_MR <- MR_bar + 3*MR_bar*d3_2/d2_2
+CL_MR <- MR_bar
+LCL_MR <- max((MR_bar - 3*MR_bar*d3_2/d2_2),0)
+
+plot(MR, type="b", pch=20, ylab="MR", ylim=c(-10,50))
+abline(h=UCL_MR,lty="dotted")
+abline(h=CL_MR,lty="dotted")
+abline(h=LCL_MR,lty="dotted")
+
+sigma0_hat <- MR_bar/d2_2
+x_bar <- mean(table_4e8[,"Systolic"])
+
+UCL_X_bar <- x_bar + 3*sigma0_hat
+CL_X_bar <- x_bar
+LCL_X_bar <- x_bar - 3*sigma0_hat
+
+plot(table_4e8[,"Systolic"], type="b", pch=20, ylab="x_bar", ylim=c(50,150))
+abline(h=UCL_X_bar,lty="dotted")
+abline(h=CL_X_bar,lty="dotted")
+abline(h=LCL_X_bar,lty="dotted")
+```
+모든 MR statistic들이 [LCL,UCL] 사이에 있으므로 공정 상태는 In control이다.
+
+# Question 6.58
+```{r}
+MR <- abs(table_4e8[2:n,"Diastolic"] - table_4e8[1:(n-1),"Diastolic"])
+MR_bar <- mean(MR)
+UCL_MR <- MR_bar + 3*MR_bar*d3_2/d2_2
+CL_MR <- MR_bar
+LCL_MR <- max((MR_bar - 3*MR_bar*d3_2/d2_2),0)
+
+plot(MR, type="b", pch=20, ylab="MR", ylim=c(-10,50))
+abline(h=UCL_MR,lty="dotted")
+abline(h=CL_MR,lty="dotted")
+abline(h=LCL_MR,lty="dotted")
+
+sigma0_hat <- MR_bar/d2_2
+x_bar <- mean(table_4e8[,"Diastolic"])
+
+UCL_X_bar <- x_bar + 3*sigma0_hat
+CL_X_bar <- x_bar
+LCL_X_bar <- x_bar - 3*sigma0_hat
+
+plot(table_4e8[,"Diastolic"], type="b", pch=20, ylab="x_bar", ylim=c(30,120))
+abline(h=UCL_X_bar,lty="dotted")
+abline(h=CL_X_bar,lty="dotted")
+abline(h=LCL_X_bar,lty="dotted")
+```
+57번 문제에서 분석의 대상이 되는 대상을 Diastolic으로 바꾸고 동일한 과정을 거치면, 모든 MR statistic들이 [LCL,UCL] 사이에 있으므로 공정 상태는 In control이다.
+
+# Question 6.59
+```{r}
+MR <- abs(table_4e8[2:n,"PulseRate"] - table_4e8[1:(n-1),"PulseRate"])
+MR_bar <- mean(MR)
+UCL_MR <- MR_bar + 3*MR_bar*d3_2/d2_2
+CL_MR <- MR_bar
+LCL_MR <- max((MR_bar - 3*MR_bar*d3_2/d2_2),0)
+
+plot(MR, type="b", pch=20, ylab="MR", ylim=c(-10,50))
+abline(h=UCL_MR,lty="dotted")
+abline(h=CL_MR,lty="dotted")
+abline(h=LCL_MR,lty="dotted")
+
+sigma0_hat <- MR_bar/d2_2
+x_bar <- mean(table_4e8[,"PulseRate"])
+
+UCL_X_bar <- x_bar + 3*sigma0_hat
+CL_X_bar <- x_bar
+LCL_X_bar <- x_bar - 3*sigma0_hat
+
+plot(table_4e8[,"PulseRate"], type="b", pch=20, ylab="x_bar", ylim=c(30,120))
+abline(h=UCL_X_bar,lty="dotted")
+abline(h=CL_X_bar,lty="dotted")
+abline(h=LCL_X_bar,lty="dotted")
+```
+58번 문제에서 분석의 대상이 되는 대상을 Diastolic으로 바꾸고 동일한 과정을 거치면, 모든 MR statistic들이 [LCL,UCL] 사이에 있으므로 공정 상태는 In control이다. 57, 58번 문제의 chart와 비교해보았을 때 PulseRate의 x_bar, R 특성치의 산포는 Diastolic의 것보다는 더 크며 Systolic의 것보다는 작다.
+
+# Question 6.(i)
+```{r}
+table_6 <- matrix(c(
+34.09,36.30,35.76,35.01,36.50,
+36.11,34.39,35.15,36.76,37.63, 
+33.43,35.41,34.00,35.20,35.67,
+36.79,35.96,35.62,34.48,33.63,
+36.46,35.89,35.83,35.43,35.40,
+33.59,34.76,33.98,34.35,35.39,
+36.17,36.20,34.60,34.97,34.83,
+34.66,35.05,36.08,34.99,35.15,
+35.95,34.18,35.02,35.32,34.77,
+35.62,35.18,34.93,36.35,36.24),
+nrow=10,ncol=5,byrow="T")
+n=5
+d2_5 <- 2.326
+d3_5 <- 0.864
+R_bar <- mean(apply(table_6,1,rg))
+sigma0_hat <- R_bar/d2_5
+
+UCL_R <- R_bar + 3*sigma0_hat*d3_5
+CL_R <- R_bar
+LCL_R <- max((R_bar - 3*sigma0_hat*d3_5),0)
+
+plot(apply(table_6,1,rg),type="b",pch=20,ylab="R",ylim=c(0,5))
+abline(h=UCL_R,lty="dotted")
+abline(h=CL_R,lty="dotted")
+abline(h=LCL_R,lty="dotted")
+
+x_barbar <- mean(apply(table_6,1,mean))
+UCL_xbarbar <- x_barbar + 3*sigma0_hat/sqrt(n)
+CL_xbarbar <- x_barbar
+LCL_xbarbar <- x_barbar - 3*sigma0_hat/sqrt(n)
+
+plot(apply(table_6,1,mean),type="b",pch=20,ylab="X_bar",ylim=c(33,37))
+abline(h=UCL_xbarbar,lty="dotted")
+abline(h=CL_xbarbar,lty="dotted")
+abline(h=LCL_xbarbar,lty="dotted")
+
+```
+alpha=0.0027은 L=3과 같으므로 3sigma rule을 적용하면 된다. x_bar, R chart 각각 모든 sample 특성치가 각 chart의
+[LCL,UCL] 구간에 속하므로 공정은 In Control 상태이다.
+
+# Question 6.(ii)
+```{r}
+x_barbar
+sigma0_hat
+1/sigma0_hat
+```
+(i)에서 구한 값에 의하여 mu0의 estimator=x_barbar=35.3046
+sigma0의 estimator=sigma0_hat=0.865
+
+# Question 6.(iii)
+(i)에서 설정한 alpha-error=0.0027에서 
+alpha-error= Pr(Decide Process is out of control given Process is In Control)
+=Pr(new sample give a signal of mean shift given process mean is not shifted)이므로 구하는 값은 0.0027이다.
+
+# Question 6.(iv)
+```{r}
+k=1/sigma0_hat
+beta <- pnorm(3-k*sqrt(n)) - pnorm(-3-k*sqrt(n))
+ARL_1 <- 1/(1-beta)
+ARL_1
+```
+Shewhart Control Chart에서 ARL_0 = 1/alpha로 alpha=0.0027에서 값은 370이다. ARL_1을 구하기 위해 beta-error을 구하면
+beta-error = Pr(Decide Process is In control given Process is Out of control)로, k=abs(mean shift)/sigma0=
+sigma0를 앞서 구한 추정치로 plug-in하여 1/sigma0_hat= 1.156, 그리고 alpha=0.0027일 때 z=3이므로 간단히 정리하면 beta는 위 코드의 수식으로 표현되고 ARL_1 = 1/(1-beta)=2.95로 계산된다.
+
+# Question 7.(i)
+```{r}
+c4_5 <- 0.9400
+s_bar <- mean(apply(table_6,1,sd))
+
+UCL_s <- s_bar + 3*s_bar*sqrt(1-c4_5^2)/c4_5
+CL_s <- s_bar
+LCL_s <- s_bar - 3*s_bar*sqrt(1-c4_5^2)/c4_5
+
+plot(apply(table_6,1,sd),type="b",pch=20,ylab="s",ylim=c(0,3))
+abline(h=UCL_s,lty="dotted")
+abline(h=CL_s,lty="dotted")
+abline(h=LCL_s,lty="dotted")
+
+UCL_xbar <- x_barbar + 3*(s_bar/c4_5)/sqrt(n)
+CL_xbar <- x_barbar
+LCL_xbar <- x_barbar - 3*(s_bar/c4_5)/sqrt(n)
+
+plot(apply(table_6,1,mean),type="b",pch=20,ylab="x_bar",ylim=c(33,37))
+abline(h=UCL_xbar,lty="dotted")
+abline(h=CL_xbar,lty="dotted")
+abline(h=LCL_xbar,lty="dotted")
+```
+X_bar, s chart 모두 sample 특성치가 각각의 [LCL, UCL] 구간에 모두 포함되므로 In control 상태이다.
+
+# Question 7.(ii)
+Question 6.(i)과 비교했을 때 다른 점은
+sigma0 추정량을 구할 때 6번 문제는 s, 7번 문제는 R을 이용하였고 산포에 대한 Control chart도 각각 s와 R을 사용하여 다르다. 그러나, 두 경우 모두 가능한 방법이며 두 경우 모두 공정이 In control 상태라는 동일 결과를 보여준다.
+# Question 7.(iii)
+```{r}
+
+sigma0_hat <- c(R_bar/d2_5, s_bar/c4_5,sd(table_6))
+
+sigma0_hat
+```
+문제에서 요구한 3가지 다른 방법의 sigma 추정법을 이용해 구한 추정치는 대략 0.865, 0.873, 0.910으로 큰 차이는 나지 않는 것으로 보인다. 모든 sample을 하나의 sample 덩어리로 생각하는 경우를 sample index별로 stratifying한다는 관점에서 볼 때 stratification 효과를 고려하지 않은 추정치라고 볼 수 있다. R과 s를 이용한 sigma 추정 방법을 비교한다면, 일반적으로 r과 s 통계량의 robustness와 가설 검정의 power가 다르므로 데이터의 robust와 testing power를 모두 고려하여 어떤 통계량을 고를 지를 결정할지 판단하여야 한다.  
+
+# Question 8.(i)
+```{r}
+xbar <- c(80.22,78.31,81.40,78.53,81.32,80.54,77.33,79.24,81.44,77.76,79.48,76.74,81.12,86.79)
+sd <- c(3.99,5.35,4.79,4.68,3.79,5.78,3.52,4.51,5.16,4.81,4.56,7.35,3.91,6.31)
+
+n <- 5
+m <- 10
+
+c4_5 <- 0.9400
+s_bar <- mean(sd[1:m])
+x_barbar <- mean(xbar[1:m])
+
+UCL_s <- s_bar + 3*(sqrt(1-c4_5^2)/c4_5)*s_bar
+CL_s <- s_bar
+LCL_s <- max(0,s_bar - 3*(sqrt(1-c4_5^2)/c4_5)*s_bar)
+
+plot(sd,type="b",pch=20,ylab="s",ylim=c(0,10))
+abline(h=UCL_s,lty="dotted")
+abline(h=CL_s,lty="dotted")
+abline(h=LCL_s,lty="dotted")
+abline(v=10)
+
+UCL_xbar <- x_barbar + 3*(s_bar/c4_5)/sqrt(n)
+CL_xbar <- x_barbar 
+LCL_xbar <- x_barbar - 3*(s_bar/c4_5)/sqrt(n)
+
+plot(xbar,type="b",pch=20,ylab="x bar",ylim=c(70,90))
+abline(h=UCL_xbar,lty="dotted")
+abline(h=CL_xbar,lty="dotted")
+abline(h=LCL_xbar,lty="dotted")
+abline(v=10)
+```
+앞에서부터 10개의 sample만 고려했을 때, 그것들의 특성치 s, x_bar 모두 각각의 [LCL, UCL] 구간에 포함되므로 In control 상태이다. Phase II 상태에 해당하는 11~14번째 데이터는 s chart에서 14번째 데이터가 UCL보다 큰 값을 보이므로, Phase II에서는 공정이 out of control 상태로 보인다(산포의 shifting이 일어남).
+
+# Question 8.(ii)
+```{r}
+s2 <- sd^2
+s2_bar <- mean(s2[1:m])
+alpha <- 0.0027
+
+UCL_s2 <- qchisq(1-alpha/2,df=n-1)*s2_bar/(n-1)
+CL_s2 <- s2_bar
+LCL_s2 <- qchisq(alpha/2,df=n-1)*s2_bar/(n-1)
+
+plot(s2,type="b",pch=20,ylab="s^2",ylim=c(0,100))
+abline(h=UCL_s2,lty="dotted")
+abline(h=CL_s2,lty="dotted")
+abline(h=LCL_s2,lty="dotted")
+abline(v=10)
+
+UCL_xbar <- x_barbar + 3*sqrt(s2_bar)/sqrt(n)
+CL_xbar <- x_barbar
+LCL_xbar <- x_barbar - 3*sqrt(s2_bar)/sqrt(n)
+
+plot(xbar,type="b",pch=20,ylab="xbar",ylim=c(45,120))
+abline(h=UCL_xbar,lty="dotted")
+abline(h=CL_xbar,lty="dotted")
+abline(h=LCL_xbar,lty="dotted")
+abline(v=10)
+```
+xbar chart에서 Phase II에 해당하는 14번째 데이터가 UCL을 벗어났다. 따라서, Phase II 공정으로부터 out of control(mu0 shifting) 상태임을 알 수 있다. 
+
+# Question 8.(iii)
+```{r}
+UCL_s_s2 <-sqrt(UCL_s2)
+CL_s_s2 <-sqrt(CL_s2)
+LCL_s_s2 <-sqrt(LCL_s2)
+
+plot(sd,type="b",pch=20,ylab="s",ylim=c(0,10))
+abline(h=UCL_s_s2,lty="dotted")
+abline(h=CL_s_s2,lty="dotted")
+abline(h=LCL_s_s2,lty="dotted")
+abline(v=10)
+
+```
+(i)에서 구한 s의 UCL, CL, LCL을 s^2 추정량을 이용한 UCL, CL, LCL의 square root로 치환하여 새로운 3개의 line을 구하였다. 모든 sample 특성치가 [LCL, UCL] 안에 들어있으며 (i)과 비교 동일한 결과를 얻을 수 있다.
+
+# Question 9.(i)
+```{r}
+data9 <- c(25,24,39,26,25,22,24,21,28,24,24,22,16,26,25,26,21,25,23,24)
+m <- length(data9)
+n <- 2
+data9_rm <- do.call("rbind", lapply(1:(m-n+1),function(i){
+  return(data9[i:(i+n-1)])
+}))
+
+d2_2 <- 1.128
+d3_2 <- 0.853
+R_bar <- mean(apply(data9_rm,1,rg))
+sigma0_hat <- R_bar/d2_2
+
+UCL_R <- R_bar + 3*sigma0_hat*d3_2
+CL_R <- R_bar
+LCL_R <- max((R_bar - 3*sigma0_hat*d3_2),0)
+
+plot(apply(data9_rm,1,rg),type="b",pch=20,ylab="R",ylim=c(0,18))
+abline(h=UCL_R,lty="dotted")
+abline(h=CL_R,lty="dotted")
+abline(h=LCL_R,lty="dotted")
+
+x_barbar <- mean(apply(data9_rm,1,mean))
+UCL_xbarbar <- x_barbar + 3*sigma0_hat/sqrt(n)
+CL_xbarbar <- x_barbar
+LCL_xbarbar <- x_barbar - 3*sigma0_hat/sqrt(n)
+
+plot(apply(data9_rm,1,mean),type="b",pch=20,ylab="X_bar",ylim=c(15,40))
+abline(h=UCL_xbarbar,lty="dotted")
+abline(h=CL_xbarbar,lty="dotted")
+abline(h=LCL_xbarbar,lty="dotted")
+
+```
+etl 영상에 소개되어 있는 do.call 함수를 이용하여 RM을 원소로 하는 matrix를 만들었다. n=2일 때, 원소가 RM인 matrix를 만들고 R chart와 x chart를 구하면, R chart에서 sample 1개가 UCL을 벗어난다. 따라서 공정은 out of control 상태라고 판단할 수 있다.
+
+# Question 9.(ii)
+```{r}
+n <- 5
+data9_rm <- do.call("rbind", lapply(1:(m-n+1),function(i){
+  return(data9[i:(i+n-1)])
+}))
+
+d2_5 <- 2.326
+d3_5 <- 0.864
+R_bar <- mean(apply(data9_rm,1,rg))
+sigma0_hat <- R_bar/d2_5
+
+UCL_R <- R_bar + 3*sigma0_hat*d3_5
+CL_R <- R_bar
+LCL_R <- max((R_bar - 3*sigma0_hat*d3_5),0)
+
+plot(apply(data9_rm,1,rg),type="b",pch=20,ylab="R",ylim=c(0,22))
+abline(h=UCL_R,lty="dotted")
+abline(h=CL_R,lty="dotted")
+abline(h=LCL_R,lty="dotted")
+
+x_barbar <- mean(apply(data9_rm,1,mean))
+UCL_xbarbar <- x_barbar + 3*sigma0_hat/sqrt(n)
+CL_xbarbar <- x_barbar
+LCL_xbarbar <- x_barbar - 3*sigma0_hat/sqrt(n)
+
+plot(apply(data9_rm,1,mean),type="b",pch=20,ylab="X_bar",ylim=c(15,40))
+abline(h=UCL_xbarbar,lty="dotted")
+abline(h=CL_xbarbar,lty="dotted")
+abline(h=LCL_xbarbar,lty="dotted")
+```
+(i)과 동일한 방법을 수행하되, RM sample의 개수를 5개로 변경하면 x_bar과 R chart 모두 in control 상태라고 결론지을 수 있음을 알 수 있다. (i)과 비교했을 때 mu0에 관한 가설검정 결과가 다르다고 할 수 있다.

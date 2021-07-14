@@ -1,0 +1,339 @@
+---
+title: "326.212 Final Project: Part 2"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE, 
+                      message = FALSE, warning = FALSE)
+```
+
+```{r packages, include = FALSE}
+library(tidyverse)
+library(lubridate)
+library(corrplot)
+library(dplyr)
+```
+
+```{r part1 code, include = FALSE}
+#getwd()
+#dir.create("./data")
+
+info<-read.csv("./data/Measurement_info.csv")
+item<-read.csv("./data/Measurement_item_info.csv")
+station<-read.csv("./data/Measurement_station_info.csv")
+
+
+data<-info%>%
+  full_join(item)%>%
+  full_join(station)
+
+data = data %>%
+  dplyr::mutate(`Pollution level` = ifelse(Average.value<0,NA,ifelse(Average.value<=Good.Blue.,"Good(Blue)",         ifelse(Average.value<=Normal.Green.,"Normal(Green)",                          ifelse(Average.value<=Bad.Yellow.,"Bad(Yellow)",                        ifelse(Average.value<=Very.bad.Red.,"Very bad(Red)",NA))))))
+
+data%>%
+  dplyr::select(Item.name,Average.value,`Pollution level`)%>%
+  head()
+```
+
+
+
+## 2014-10451 Baek Dae Hyun
+
+## Part 2
+
+### Q1
+
+```{r}
+var_remove<-c("Station.code","Address","Latitude","Longitude","Item.code",   "Unit.of.measurement","Good.Blue.","Normal.Green.","Bad.Yellow.","Very.bad.Red.")   
+index<-sapply(var_remove, function (x) return (which(x==names(data))))
+
+data<-data[,-index]
+names(data)
+```
+
+제거할 열 이름을 저장한 하나의 긴 벡터를 정의하고, sapply 함수를 통해 각 열의 index를 찾았다. 그리고 그 index에 해당하는 열을 뺀 데이터 프레임을 다시 data에 저장하였다. 
+
+### Q2
+
+```{r}
+type<-sapply(names(data), function (x) return (typeof(data[,x]))) 
+
+var_factor<-names(data)[which(type=="character")]
+for (i in 1:length(var_factor)){
+    data[,var_factor[i]]<-factor(data[,var_factor[i]])
+}
+str(data)
+```
+
+1번 문제와 유사한 방법으로 sapply 함수를 이용해 각 변수(열)의 typeof() 실행 결과를 계산할 수 있다. 그 결과를 type에 저장하고, 변수(열) 중 type 내에서의 값이 character인 것을 찾아 var_factor에 저장하였다. 그리고 for문을 이용해 var_factor에 해당하는 변수(열)을 모두 factorize하였다. 결과는 str()로 확인 가능하다.
+
+### Q3-1
+
+```{r}
+#NA check
+sum(is.na(data))
+sapply(names(data),function(x){
+  sum(is.na(data[,x]))
+})
+```
+
+data에 missing value가 26160개나 있음을 발견하였다. 이 26160개의 missing value가 어디에서 발생한 것인지를 확인하기 위해 sapply를 통해 data의 모든 열에 대하여 각 열의 na value 값을 갖는 것의 개수의 합을 출력하였다. 그 결과, Pollution level에서 missing value가 전부 들어가 있음을 알 수 있다.
+
+### Q3-2
+
+```{r}
+data%>%
+  filter(Average.value<0)%>%
+  dplyr::select(Average.value,Instrument.status)%>%
+  count(Average.value,Instrument.status)
+
+```
+
+Pollution level은 Part 1에서 정의된 변수로, 정의된 바에 의하면 그것이 NA인 이유는 Average value<0이거나 Very bad(Red)보다 클 때이다. Average value가 음수인 case=23840, Average value가 Very bad(Red)보다 큰 case=26160-23840=2320임을 코드 구현 없이 자연스럽게 알 수 있다.
+ Average value가 음수인 경우 그 값은 항상 -1이었으며, 그 때의 Instrument status 값은 항상 0이 아니었다. 따라서 Average value가 음수인 경우 항상 Instrument의 상태가 정상이 아닌 경우에 해당하고 보여지며 이 때 -1의 값은 기계가 실제로 오염물질을 측정한 수치가 아니라 기계의 오류를 표시하는 indicator와 유사한 느낌으로 생각된다. 따라서 이 경우 Average value에 평균 값 대체를 고려하거나 아예 -1의 값을 갖는 모든 항을 제거하는 complete case analysis를 생각해볼 수도 있겠다. 
+ 한편 Average value가 해당 item의 Very bad(Red) 수치보다 큰 경우는 앞서 논의한 경우처럼 일관성 있는 수치를 가지지 않고 큰 변동을 나타내며 하나하나가 실측된 데이터로서 의미있는 수치로 여겨진다. 따라서 이 경우는 기계가 인식하는 최대 오염물질의 양보다 실제 양이 더 커서 발생한 오류로서, 이 때에 Average value 값은 바꾸지 않되 Pollution level은 가장 심각한 레벨인 Very bad(Red)로 대체하는 것이 타당해보인다. 
+ 
+### Q3-3
+
+```{r}
+#split data into data0(Average value<=Very.bad.Red.), data1(Average value>Very.bad.Red.)
+#For all data1 rows, change Pollution level = "Very bad(Red)" 
+
+data0<-data%>%
+  left_join(item)%>%
+  filter(Average.value<=Very.bad.Red.) 
+data1<-data%>%
+  left_join(item)%>%
+  filter(Average.value>Very.bad.Red.)%>%
+  mutate(`Pollution level`="Very bad(Red)")
+
+#rbind data0, data1 and select certain columns that question requires.
+m<-rbind(data0,data1)%>%
+  filter(Average.value>=0)%>%
+  dplyr::select("Measurement.date","Average.value","Instrument.status","Item.name","Station.name.district.",`Pollution level`)
+
+data<-m #substitute orginal data we used to new, NA processed data.
+head(data)
+```
+
+ 앞선 문제의 논리에 근거하여 결측치를 처리해보자. 우선 Average value의 값이 그 item의 Very bad(Red) 값보다 큰 경우, Pollution level만 Very bad(Red)로 수정한다. 여기서 사용하는 data는 앞선 문제 조건에 의해 Very bad(Red) 열이 삭제되었으므로 part1에서 import한 item 데이터(Very bad(Red) 열을 갖고 있는 데이터)를 left_join한 뒤 작업하였다.
+ 그 다음으로 Average value 값이 음수인 행을 처리해보자. 앞서 논의한 바와 같이 이 경우 기계의 오류가 발생한 경우이므로 평균 값 대체나 아예 행을 삭제하는 방안을 고려해야 한다. 평균 값을 대체한다고 하였을 때는 지역, 계절, 연도에 따른 추세와 변동성을 모두 고려하여야 할 것이고 특히 이 데이터가 시계열 데이터임을 감안하면 평균(또는 중앙값 등) 대체는 상당히 통계적으로 justify하기 어려울 것으로 보인다. 따라서 본 연구에서는 과감하게 -1의 값을 갖는 행을 모두 제거, 총 23840개의 행을 앞으로의 연구 대상에서 제외한다.
+
+### Q4-1
+
+```{r}
+#frequency table
+table(data$Instrument.status)
+#proportion table
+table(data$Instrument.status)/nrow(data)
+#proportion plot
+ggplot(data,aes(x=factor(Instrument.status)))+
+  geom_bar(aes(y = (..count..)/sum(..count..)))+
+  labs(x="Instrument Status",y="proportion",title="Proportion of Instrument Status") +
+  theme_bw()
+```
+
+table()을 이용하여 Instrument status의 도수와 빈도를 나타내는 table을 만들 수 있으며, 추가적으로 ggplot + geom_bar을 이용해 각 범주의 비율을 그림으로 나타낼 수 있다. 
+
+### Q4-2
+
+```{r}
+data%>%
+  left_join(item)%>%
+  filter(Instrument.status==9)%>%
+  dplyr::select(Average.value,Very.bad.Red.)%>%
+  head()#not that much abnormal data of Average value
+
+data<-data%>%
+  mutate(Instrument.status=ifelse(Instrument.status!=0,2,Instrument.status))
+#consider all Instrument status with nonzero value(just as definition, means not normal) as abnormal(Instrument status=2)
+
+ggplot(data,aes(x=factor(Instrument.status)))+
+  geom_bar(aes(y = (..count..)/sum(..count..)))+
+  labs(x="Instrument Status",y="proportion",title="Proportion of Instrument Status(nonzero value processed)") +
+  theme_bw()
+
+data_part2q4<-data
+```
+
+앞선 문제의 그림을 보면 0의 값을 갖는 경우가 95% 이상이고 나머지 범주들은 모두 합쳐봤자 5% 채 되지 않는다. 앞서 언급한 내용처럼 Instrument가 0이 아닌 것은 기계 상의 문제가 있는 경우라고 볼 수 있고 이들을 하나의 범주로 합치는 것이 괜찮은 방법으로 보인다. 한편 Instrument status 값이 0이 아니더라도, 앞서 결측치 처리 논의에서처럼 Average value 값이 -1과 같은 터무니 없는 숫자는 아니므로 측정된 Average.value 값 자체는 의미가 있다고 보여진다(다만 그것의 신뢰성이 떨어진다는 의미로 해석할 수 있을 것이다). 따라서 4: Power cut off, 8: Under repair과 같이 기계의 치명적 오류를 나타내는 범주로 합치는 것은 좋지 않다고 생각된다. 또한 9: abnormal data로 합치기에는 코드 결과를 보면 Average.value가 Very.Bad(Red)보다 매우 큰 형태의 이상치라고 볼 수는 없기 때문에 이 또한 적당하지 않다. 한편 2: Abnormal로 합친다면 의미상으로 0을 제외한 모든 다른 범주를 넓은 범위에서 포함할 수 있으므로 2로 0을 제외한 범주들을 다 합치는게 타당해보인다.
+
+### Q5
+
+```{r}
+data%>%
+  group_by(Item.name)%>%
+  filter(Average.value==max(Average.value))%>%
+  dplyr::select(Measurement.date,Station.name.district.,Average.value)
+```
+
+data를 Item.name 별로 group_by()하고 각각 Average value가 최댓값을 갖는 행을 filter하여 그것의 날짜/시각과 지역을 출력하도록 하였고 코드 실행 결과에 문제의 답이 잘 정리되어있다.
+
+### Q6
+
+```{r}
+data%>%
+  ggplot()+
+  geom_bar(aes(x=Item.name, fill=`Pollution level`),position = "fill")+
+  labs(title="Levels of pollution in Seoul from 2017 to 2019", x="Item name",y="proportion")+
+  theme(plot.title = element_text(hjust = 0))
+```
+
+x=Item.name, fill=`Pollution level`, position="fill"로 하여 총 높이 1에
+각 Pollution level 범주가 어느 비율로 있는지 색깔로 구분하여 나타나는 
+bar chart를 그릴 수 있다. title은 대개 default로 왼쪽정렬되어 나타나지만, user의 R setting에 따라 title이 plot의 중앙에 나오게 설정하는 경우도 있음을 고려하여 확실하게 그림과 똑같이 묘사하기 위해 강제로 왼쪽 정렬되게끔 옵션을 추가하였다(theme(plot.title = element_text(hjust = 0)).
+
+### Q7
+
+```{r}
+head(data)
+```
+
+### Q8
+
+```{r}
+data%>%
+  filter(Item.name=="PM2.5")%>%
+  group_by(Station.name.district.)%>%
+  summarise(
+    PM2.5avg=mean(Average.value)
+  )%>%
+  filter(rank(PM2.5avg)%in%c(1,25))
+```
+
+답 : 가장 높은구-영등포구, 가장 낮은구 - 강북구
+
+3년에 걸쳐 배출한 PM2.5의 평균 배출량의 평균을 모든 구에 대하여 구한 뒤, 순위를 매겨 가장 높은 구(1위)와 가장 낮은 구(25위)를 구하였다.
+
+### Q9
+
+```{r}
+PM2.5<-data%>%
+  filter(Item.name=="PM2.5",Station.name.district.%in%c("Gangbuk-gu","Yeongdeungpo-gu"))%>%
+  dplyr::select(Average.value,Station.name.district.)
+
+var.test(PM2.5$Average.value~PM2.5$Station.name.district.)
+#p-value<0.05, we say they have non-equal variance
+
+t.test(PM2.5$Average.value~PM2.5$Station.name.district.,alternative="less",
+       var.equal=FALSE,alpha=0.05)
+#p-value<0.05, we say population means are different.
+```
+
+2개의 서로 다른 집단의 모평균이 다른지 검정하기에 앞서 variance가 같은지 test 한다. p-value<0.05로 두 집단의 variance가 같다고 할 수 없으므로, 단측 t 검정에서 var.equal=FALSE 옵션을 넣고 진행한다. 단측 t 검정의 p-value<0.05이므로 귀무가설을 기각, 영등포구와 강북구의 초미세면지 평균 배출량의 차이가 유의하다고 할 수 있다.
+
+### Q10
+
+```{r}
+ymdh<-data.frame(sapply(c("year","month","mday","hour"),function (x){
+  get(x)(parse_datetime(as.character(data$Measurement.date)))
+}))
+
+data<-cbind(data,ymdh)%>% 
+  dplyr::rename(Year=year,Month=month,Day=mday,Hour=hour)
+head(data)
+```
+
+parse_datetime()을 통해 Measurement date를 parsing하고, sapply 함수를 통해 year(), month(), day(), hour()을 모든 date에 대해 자동으로 적용, 계산된 값을 dataframe으로 저장하고 이것을 기존에 작업하던 dataframe과 합쳤다.  
+
+### Q11
+
+```{r}
+data%>%
+  dplyr::select(Average.value,Item.name,Month)%>%
+  filter(Item.name%in%c("PM2.5","PM10"))%>%
+  group_by(Month)%>%
+  summarise(
+    avg25=mean(Average.value[which(Item.name=="PM2.5")]),
+    avg10=mean(Average.value[which(Item.name=="PM10")])
+  )%>%
+  ggplot(aes(x=Month))+
+  geom_line(aes(y=avg25),colour="green")+
+  geom_line(aes(y=avg10),colour="blue")+
+  labs(x="Month",y="Average value",title="Average value of PM2.5(blue), PM10(green)")+
+  scale_x_continuous(breaks=seq(1,12,by=1))+
+  theme_bw()
+```
+
+
+파란색 꺾은선(PM2.5)과 초록색 꺾은선(PM10) 둘 다 월별 증감 추세가 매우 유사하다. PM2.5와 PM10 모두 5월을 기점으로 완만하게 감소하여 8월~10월까지 낮은 평균값을 보이며 11월부터 1월까지 꾸준히 증가하다가 2월에 소폭 감소하고, 다시 증가하여 3월에 최대이며 4월에 감소하였다가 5월에 소폭 증가한다. 
+
+### Q12-1
+
+```{r}
+#dataframe(spread)
+data.spread<-data%>%
+  dplyr::select(Measurement.date,Station.name.district.,Item.name,Average.value)%>%
+  tidyr::spread(key="Item.name",value="Average.value")%>%
+  dplyr::select(CO:SO2)
+head(data.spread)
+```
+
+같은 날짜(시각), 같은 지역에서 측정한 6개의 서로 다른 오염물질의 양을 하나의 데이터로 정리하기 위하여 Measurement.date,Station.name.district.와 Item.name,Average.value를 select하고 key=item.name, value=average.value로 하여 data를 spread한 뒤 CO:S02까지의 열만 select하여 데이터프레임에 저장하였다.
+
+### Q12-1 (결측치 제거)
+
+```{r}
+#remove na rows
+data.spread<-data.spread%>%
+    filter(!is.na(CO),!is.na(SO2),!is.na(PM2.5),!is.na(PM10),!is.na(NO2),!is.na(O3))
+
+head(data.spread)
+sum(is.na(data.spread))
+```
+
+ na가 하나라도 있는 행을 모두 제거하기 위하여 filter(!is.na())를 모든 열에 대해 공통 적용하였다.
+
+### Q12-2
+
+```{r}
+cor(data.spread)
+```
+
+cor() 함수로 상관관계행렬을 구하였다.
+
+### Q12-3
+
+```{r}
+corrplot::corrplot(cor(data.spread))
+```
+
+대각 성분을 제외하고 나머지 원의 크기와 색깔의 진하기를 통해 두 변수간 상관관계의 정도를 가늠할 수 있다.
+NO2와 SO2, NO2와 O3, SO2와 O3 간의 상관관계가 높고, 그 외의 변수 조합은 상관관계가 적게 나타난다.
+
+### Q12-4
+
+```{r}
+p_1<-data%>%
+  filter(Item.name %in% c("NO2","O3"))%>%
+  group_by(Month)%>%
+  summarise(
+    avgN02=mean(Average.value[which(Item.name=="NO2")]),
+    avgO3=mean(Average.value[which(Item.name=="O3")])
+  )%>%
+  ggplot(aes(x=Month))+
+  geom_line(aes(y=avgN02),colour="green")+
+  geom_line(aes(y=avgO3),colour="blue")+
+  labs(x="Month",y="Average value",title="Monthly Average value of NO2(blue), O3(green)",collapse="")+
+  scale_x_continuous(breaks=seq(1,12,by=1))+
+  theme_bw()
+
+p_2<-data%>%
+  filter(Item.name %in% c("NO2","O3"))%>%
+  group_by(Hour)%>%
+  summarise(
+    avgN02=mean(Average.value[which(Item.name=="NO2")]),
+    avgO3=mean(Average.value[which(Item.name=="O3")])
+  )%>%
+  ggplot(aes(x=Hour))+
+  geom_line(aes(y=avgN02),colour="green")+
+  geom_line(aes(y=avgO3),colour="blue")+
+  labs(x="Hour",y="Average value",title="Hourly Average value of NO2(blue), O3(green)")+
+  scale_x_continuous(breaks=seq(0,23,by=1))+
+  theme_bw()
+print(p_1)
+print(p_2)
+```
+
+Q11과 동일한 코드를 이용하면 NO2와 O3에 대해서 월별, 시간별 NO2 와 O3의 변화를 나타내는 꺾은선 그래프를 그릴 수 있다. 월별과 시간별 그래프를 살펴보면 둘다 NO2가 상승하는 구간에서 O3는 하강하고, NO2가 하강하는 구간에서 O3는 상승하는 형태로서 서로 개형이 거의 정반대임을 알 수 있다.특히 월별 그래프에서는 O3가 최댓값일 때 NO2는 거의 최소이고, 거꾸로 O3가 최소일 때 NO2는 최댓값을 보여 더 극단적인 그래프 추이를 보였다. 앞서 corrplot에서 볼 수 있듯이 NO2와 O3의 상관관계는 작지 않은 크기로 나타났으나(0.59), 월별 그리고 시간별 변화 추이는 서로 거의 정반대이다.

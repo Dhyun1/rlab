@@ -1,0 +1,263 @@
+---
+title: "Dataming-Lab"
+author: "Yonggab Kim"
+date: "19. 10. 16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Cross-Validation
+##The Validation Set Approach
+```{r}
+library(ISLR)
+summary(Auto)
+set.seed(1)
+train <- sample(1:nrow(Auto),nrow(Auto)/2)
+
+attach(Auto)
+
+# Linear 
+lm.fit <- lm(mpg~horsepower,data=Auto,subset=train)
+mean((mpg-predict(lm.fit,Auto))[-train]^2)
+
+# Second order
+lm.fit2=lm(mpg~poly(horsepower,2),data=Auto,subset=train)
+mean((mpg-predict(lm.fit2,Auto))[-train]^2)
+
+# Third order
+lm.fit3=lm(mpg~poly(horsepower,3),data=Auto,subset=train)
+mean((mpg-predict(lm.fit3,Auto))[-train]^2)
+
+set.seed(2)
+train <- sample(1:nrow(Auto),nrow(Auto)/2)
+
+# Linear
+lm.fit=lm(mpg~horsepower,subset=train)
+mean((mpg-predict(lm.fit,Auto))[-train]^2)
+
+# Second order
+lm.fit2=lm(mpg~poly(horsepower,2),data=Auto,subset=train)
+mean((mpg-predict(lm.fit2,Auto))[-train]^2)
+
+# Third order
+lm.fit3=lm(mpg~poly(horsepower,3),data=Auto,subset=train)
+mean((mpg-predict(lm.fit3,Auto))[-train]^2)
+```
+
+## Leave-One-Out Cross-Validation
+
+```{r}
+glm.fit <- glm(mpg~horsepower,data=Auto)
+coef(glm.fit)
+lm.fit <- lm(mpg~horsepower,data=Auto)
+coef(lm.fit)
+
+library(boot)
+glm.fit <- glm(mpg~horsepower,data=Auto)
+cv.err <- cv.glm(Auto,glm.fit)
+cv.err$delta
+
+cv.error <- rep(0,5)
+for (i in 1:5){
+ glm.fit <- glm(mpg~poly(horsepower,i),data=Auto)
+ cv.error[i] <- cv.glm(Auto,glm.fit)$delta[1]
+ }
+cv.error
+
+
+```
+
+## k-Fold Cross-Validation
+```{r}
+set.seed(17)
+cv.error.10 <- rep(0,10)
+for (i in 1:10){
+ glm.fit <- glm(mpg~poly(horsepower,i),data=Auto)
+ cv.error.10[i] <- cv.glm(Auto,glm.fit,K=10)$delta[1]
+ }
+cv.error.10
+```
+
+# Variable Selection
+
+## Dataset
+```{r}
+library(glmnet)
+library(MASS)
+library(leaps)
+library(AUC)
+library(ISLR)
+
+data(Boston)
+names(Boston)
+# help(Boston)
+Boston <- Boston[,order(colnames(Boston))]
+head(Boston)
+dim(Boston)
+set.seed(201910)
+ind <- sample(1:nrow(Boston),ceiling(nrow(Boston)/3)) # 1:2 selection
+boston_train<-Boston[-ind,]
+boston_test<-Boston[ind,]
+```
+# Methods
+### Note : Think model complexity as tuning parameter
+### Find model complexity first and select model next 
+
+## Example1
+## Complexity selection
+
+```{r cars}
+complexity <- function(ny = ny, data = data, nfold = nfold, method = method,
+                       family = dist, nvmax = nvmax){
+  
+  cv.ind <- sample(nrow(data))
+  tmp <- matrix(ncol = ceiling(nrow(data)/nfold), nrow = nfold)
+  tmp[1:length(cv.ind)] <- cv.ind
+  
+  err <- rep(Inf,ncol(data))
+  pred<-real<-rep(list(0),ncol(data))
+  name<-colnames(data)
+  formula<-as.formula( paste(name[ny],paste(name[-ny], collapse = " + "), 
+                             sep = " ~ "))
+  for (i in 1: nfold) {
+  tmp1<-tmp[i,]
+  cv <- data[tmp1[complete.cases(tmp1)],]
+  mb <- data[-tmp1[complete.cases(tmp1)],]
+
+  if(method == "exhaustive"){
+    regfit = regsubsets(formula,data = mb,method="exhaustive",nvmax = nvmax)
+    } else if (method == "forward"){
+    regfit = regsubsets(formula,data = mb,method="forward",nvmax = nvmax)
+    } else if (method == "seqrep") {
+    regfit = regsubsets(formula,data = mb,method="seqrep",nvmax = nvmax)
+    } else if (method == "backward"){
+    regfit = regsubsets(formula,data = mb,method="backward",nvmax = nvmax)
+    }
+  
+  for ( j in 1:(regfit$ir-1)){
+  cf<-coef(regfit,j)
+  cv_sb<-subset(cv,select = colnames(cv)%in%names(cf))
+  pred[[j]]<-c(pred[[j]],cf[1]+t(cf[-1])%*%t(cv_sb))
+  real[[j]]<- c(real[[j]],cv[,ny])
+      }
+    }
+  for (j in 1:length(pred)){
+  err[j] <- mean((pred[[j]]-real[[j]])^2)
+  }
+  return(err)
+}
+```
+
+## Leave-One-Out Cross validation to find complexity for Boston data
+```{r}
+
+comp1 <- complexity(ny=8,data=boston_train, nfold=nrow(boston_train), nvmax = 14, method = "forward")
+comp2 <- complexity(8, boston_train, nfold=nrow(boston_train), nvmax = 14, method = "backward")
+# comp3 <- complexity(8, boston_train, nfold=nrow(boston_train), nvmax = ncol(boston_train), method = "seq")
+comp4 <- complexity(8, boston_train, nfold=nrow(boston_train), nvmax = 14, method = "exhaustive")
+
+comp1
+comp2
+comp4
+```
+
+## Finding Best model
+
+### Fitting Stepwise Model using retrieved model complexity
+```{r }
+
+regfit.fwd <- regsubsets(medv~.,data = boston_train,method="forward",nvmax = 14)
+regfit.bwd <- regsubsets(medv~.,data = boston_train,method="backward",nvmax = 14)
+regfit.ext <- regsubsets(medv~.,data = boston_train,method="exhaustive",nvmax = 14)
+which.min(summary(regfit.fwd)$cp)
+which.min(summary(regfit.bwd)$cp)
+which.min(summary(regfit.ext)$cp)
+
+```
+
+### Test MSPE using Built Model above
+```{r}
+cf <- coef(regfit.fwd,which.min(comp1[comp1>0]))
+boston_test_sb <- subset(boston_test,select = colnames(boston_test)%in%names(cf))
+mean((cf[1]+t(cf[-1])%*%t(boston_test_sb)-boston_test[,8])^2)
+
+cf <- coef(regfit.bwd,which.min(comp1[comp2>0]))
+boston_test_sb <- subset(boston_test,select = colnames(boston_test)%in%names(cf))
+mean((cf[1]+t(cf[-1])%*%t(boston_test_sb)-boston_test[,8])^2)
+
+cf <- coef(regfit.ext,which.min(comp1[comp4>0]))
+boston_test_sb <- subset(boston_test,select = colnames(boston_test)%in%names(cf))
+mean((cf[1]+t(cf[-1])%*%t(boston_test_sb)-boston_test[,8])^2)
+```
+
+# Ridge Regression
+## Choosing Tuning Parameter lambda
+```{r}
+ridge_cv<-cv.glmnet(x = as.matrix(boston_train[,-8]),y = boston_train$medv,alpha = 0,nfolds = nrow(boston_train))
+ridge_cv$lambda.min
+ridge_cv$lambda.1se
+par(mfrow = c(1,2))
+plot(ridge_cv$glmnet.fit, "norm",   label=TRUE)
+plot(ridge_cv$glmnet.fit, "lambda", label=TRUE)
+```
+
+## Model Application
+```{r}
+#using 1se
+#model<-glmnet(x = as.matrix(boston_train[,-8]),y = boston_train$medv,alpha = 0,lambda = ridge_cv$lambda.1se)
+model<-glmnet(x = as.matrix(boston_train[,-8]),y = boston_train$medv,alpha = 0,lambda = ridge_cv$lambda.min)
+summary(model)
+model$beta
+error.ridge<-mean((predict(model, newx = as.matrix(boston_test[,-8]))-boston_test$medv)^2)
+error.ridge
+
+
+```
+
+# Lasso Regression
+## Choosing Tuning Parameter lambda
+```{r}
+lasso_cv <- cv.glmnet(x = as.matrix(boston_train[,-8]),y = boston_train$medv,alpha = 1)
+lasso_cv$lambda.min
+lasso_cv$lambda.1se
+plot(lasso_cv$glmnet.fit, "norm",   label=TRUE)
+plot(lasso_cv$glmnet.fit, "lambda", label=TRUE)
+```
+
+## Model Application
+```{r}
+model_1se <- glmnet(x = as.matrix(boston_train[,-8]),y = boston_train$medv,alpha = 1,lambda = lasso_cv$lambda.1se)
+model_1se$beta
+
+model_min<-glmnet(x = as.matrix(boston_train[,-8]),y = boston_train$medv,alpha = 1,lambda = lasso_cv$lambda.min)
+model_min$beta
+
+mean((predict(model_min, newx = as.matrix(boston_test[,-8]))-boston_test$medv)^2)
+mean((predict(model_1se, newx = as.matrix(boston_test[,-8]))-boston_test$medv)^2)
+```
+
+# Ridge Regression
+# Binary Example(cont'd)
+## Choosing Tuning Parameter lambda
+```{r}
+ridge_cv <- cv.glmnet(x = data.matrix(boston_train[,-8]),y = boston_train[,8],alpha = 0,nfolds = nrow(boston_train))
+ridge_cv$lambda.min
+ridge_cv$lambda.1se
+plot(ridge_cv)
+par(mfrow = c(1,2))
+plot(ridge_cv$glmnet.fit, "norm",   label=TRUE)
+plot(ridge_cv$glmnet.fit, "lambda", label=TRUE)
+```
+
+## Model Application
+```{r}
+model <-glmnet(x = data.matrix(boston_train[,-8]),y = boston_train[,8],alpha = 0,lambda = ridge_cv$lambda.min)
+mean((predict(model, newx = as.matrix(boston_test[,-8]))-boston_test$medv)^2)
+```
+
+
+
+

@@ -1,0 +1,214 @@
+---
+title: "HW4(2014_10451)"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### 2014-10451
+
+### Ex. 11.5
+
+```{r}
+p=4
+alpha=0.05
+mu<-c(0,0,0,0)
+sigma<-matrix(rep(0.7,16),nrow=4)
+diag(sigma)<-c(rep(1,4))
+UCL<-qchisq(1-alpha,4) #UCL=9.48, CL=0, no LCL
+UCL
+
+y<-c(3.5,3.5,3.5,3.5)
+HT<-1*t(y-mu)%*%solve(sigma)%*%(y-mu)
+HT #HT=15.81 for observation c(3.5,3.5,3.5,3.5)
+HT>UCL #HT>UCL, O.C
+
+d<-vector("double", 4L)
+for (i in 1:4){
+  d[i]<-HT-1*t(y[-i]-mu[-i])%*%solve(sigma[-i,-i])%*%(y[-i]-mu[-i])
+}
+d
+UCL_d<-qchisq(1-alpha,1)
+UCL_d
+d>UCL_d #d[i]>UCL for all i
+
+
+y<-c(2.5,2,-1,0)
+HT<-1*t(y-mu)%*%solve(sigma)%*%(y-mu)
+HT #HT=28.28 for observation c(2.5,2,-1,0)
+HT>UCL #HT>UCL, O.C
+```
+
+(a) covariance matrix은 diagonal이 1이고 나머지는 0.7인 4x4 행렬이다.
+(b) UCL은 chi-square dof=4의 하방 (1-alpha) 분위수이며 CL=0, LCL은 없다.
+(c) 모수가 known일 때, 제시된 y에 대하여 HT 통계량을 구하면 15.81로 (b)의 UCL보다 크므로 Out of control 상태이다.
+(d) i번째 모수 관련한 정보를 제외한 상태에서 구해지는 분산행렬과 평균벡터를 이용해 각각의 HT 통계량을 구하고, 그것이 (c)의 각각의 HT 값과 얼마나 차이나는 지를 계산한 것이 eq. 11.22이다. d_i 값은 모든 index에 대하여 0.49이며 각각에 대한 UCL 값은 chi-square dof=1의 하방 (1-alpha)분위수로서 3.84이다. 따라서 모든 d 값이 그것의 UCL보다 작으므로 d 값을 통해서는 어떤 변수가 모수의 shift를 겪었는지 알 수 없다.
+(e) 모수가 known일 때, 제시된 y에 대하여 HT 통계량을 구하면 15.81로 (b)의 UCL보다 크므로 Out of control 상태이다.
+
+### Ex. 11.13
+
+```{r}
+table_4e8 <- matrix(c(
+  81,56,82,
+  112,73,66,
+  108,62,76,
+  95,61,66,
+  111,68,78,
+  98,65,71,
+  98,64,84,
+  115,72,61,
+  112,72,77,
+  103,63,74,
+  117,72,59,
+  103,71,85,
+  100,65,64,
+  105,64,71,
+  100,71,85,
+  115,66,65,
+  113,84,78,
+  107,71,76,
+  117,74,90,
+  96,68,81,
+  107,60,72,
+  90,57,89,
+  119,69,61,
+  85,59,77,
+  107,70,83),
+  nrow=25,ncol=3,byrow="T")
+colnames(table_4e8) <- c("Systolic", "Diastolic","PulseRate")
+
+xbar<-as.matrix(apply(table_4e8[,1:2],2,mean))
+S<-cov(table_4e8[,1:2])
+
+HT<-NULL
+for(i in 1:nrow(table_4e8)){
+  x<-table_4e8[i,1:2] 
+  HT_tmp<-t(x-xbar)%*%solve(S)%*%(x-xbar)
+  HT<-c(HT,HT_tmp)
+}
+HT
+library(ggplot2)
+alpha<-0.05
+
+UCL<-qchisq(0.95,2) #UCL = chi-square(1-alpha) dof=2
+data_HT<-data.frame(HT=HT,ind=1:nrow(table_4e8)) #HT statistics of data
+ggplot(data_HT, aes(x=ind,y=HT))+
+  geom_line()+
+  geom_abline(slope=0, intercept=UCL, lty="dotted")
+  ylim(0,10)
+which(HT>UCL)
+
+```
+
+bp data에서 Systolic, Diastolic에 대해서 multivariate Control Chart를 그려보자. p=2, n=1, UCL은 chi-square(dof=p)에서 도출된다. 17번째 index에서 HT 통계량이 UCL보다 크므로 공정은 O.C 상태라고 볼 수 있다. 이에 대한 assignble cause로는 측정설비의 이상과 측정자의 미숙련 등이 있을 것이다.
+
+### Ex. 11.19
+
+```{r}
+p=8
+n=5
+m=30
+alpha=0.01
+
+const<-((m+1)*(n-1)*p)/(m*(n-1)-p+1) #constant in case of mu, sigma unknown, n>=2
+UCL_F<-const*qf(1-alpha,df1=p,df2=m*(n-1)-p+1)
+UCL_F
+
+UCL_chisq<-qchisq(1-alpha,p)
+UCL_chisq
+
+while (1){
+  UCL_F<-((m+1)*(n-1)*p)/(m*(n-1)-p+1)*qf(1-alpha,df1=p,df2=m*(n-1)-p+1)
+  if(UCL_chisq>(0.99*UCL_F)) break
+  m=m+1
+}
+m #m=450 to be UCL from chi-square dist is over 0.99*UCL from F dist
+```
+(a) mu0, sigma0가 unknown일 때 Phase II data를 분석하기 위한 HT 통계량에 대한 UCL은 적당한 상수와 dof1=p, dof2=m(n-1)+1-p인 F분포에 의해 결정되고 그 값은 23.46이다. 
+(b) 한편, mu0, sigma0가 known이라면 Phase 구분 없이 HT 통계량은 dof=p인 카이제곱분포에 의해  결정되며 그 값은 20.09이다. 
+F분포에서의 UCL이 chi-square의 그것보다 더 큰데, 이는 unknown일 때 모수의 추정치를 사용하기 때문에 같은 유의수준에 대해 신뢰구간이 넓어진 것으로 해석할 수 있다.
+(c) F분포에서 m이 커지면 F 분포를 이용한 UCL은 점점 감소하여 카이제곱의 UCL에 가까워지는데, m=450에서 둘의 차이가 1% 미만임을 알 수 있다.
+
+### 4.
+
+```{r}
+library(ggplot2)
+data<-read.csv("./table7_9.csv")
+head(data)
+varname<-names(data)[2:7] #names of variables X1, X2, .. X6
+
+ind_IC<-1:30
+ind_target<-31:50
+m<-15
+p<-6
+alpha<-0.005
+
+xbar<-as.matrix(apply(data[ind_IC,varname],2,mean)) #apply mean by column for all Phase I sample, do as.matrix
+Sbar<-cov(data[ind_IC,varname]) #Sbar = covariance matrices for Phase I sample
+
+HT<-NULL
+for(i in ind_target){
+  y<-t(data[i,varname]) #transpose needed
+  HT_tmp<-t(y-xbar)%*%solve(Sbar)%*%(y-xbar)
+  HT<-c(HT,HT_tmp)
+}
+
+const<-((m+1)*(m-1)*p)/(m*(m-p)) #constant in case of mu, sigma unknown, n=1
+UCL<-const*qf(1-alpha,df1=p,df2=m-p) #qf to get quantile(1-alpha)
+data_HT<-data.frame(HT=HT,ind=ind_target) #HT statistics of data in Phase II
+ggplot(data_HT, aes(x=ind,y=HT))+
+  geom_line()+
+  geom_abline(slope=0, intercept=UCL, lty="dotted")+#draw UCL line
+  ylim(0,75)
+```
+
+처음 30개 데이터를 In control이라 가정하므로 이는 Phase I 단계로 볼 수 있으며, 이 구간에 속한 데이터를 이용하여 mu와 S의 추정량, 그리고 UCL을 구한다. 이를 이용해 그 다음 31~50번째 데이터에 대한 HT 통계량이 UCL보다 작음을 plot으로 확인하였다. 따라서 공정은 Phase II에서도 In control 상태이며, 평균과 분산의 shifting이 일어나지 않았음을 알 수 있다.
+
+### 5.
+
+```{r}
+data<-read.csv("./table7_9.csv")
+head(data)
+data$batch<-rep(1:25, each=2) #grouping by 1 1 2 2 3 3 4 4 ..
+varname<-names(data)[2:7] #names of variables X1, X2, .. X6
+
+ind_IC<-1:15
+ind_target<-16:25
+m<-15
+n<-2
+p<-6
+alpha<-0.005
+
+xbar<-do.call(rbind,lapply(1:25,function(j){ #apply function() for all batches, then rbind
+  apply(data[data$batch==j,varname],2,mean) #apply mean by column for batch number j sample
+})) 
+
+xbarbar<-apply(xbar[ind_IC,],2,mean) #apply mean by column throughout all batches considered I.C.,Phase I.
+
+Sbar<-Reduce("+",lapply(ind_IC,function(j){
+  Smat<-cov(data[data$batch==j,varname]) 
+  return (Smat)
+}))/length(ind_IC) #Sbar equals mean of covariance matrices for all batches considered I.C.,Phase I.
+
+HT<-NULL
+for(i in ind_target){
+  ybar<-xbar[i,]
+  HT_tmp<-n*t(ybar-xbarbar)%*%solve(Sbar)%*%(ybar-xbarbar)
+  HT<-c(HT,HT_tmp)
+}
+
+const<-((m+1)*(n-1)*p)/(m*(n-1)-p+1) #constant in case of mu, sigma unknown, n>=2
+UCL<-const*qf(1-alpha,df1=p,df2=m*(n-1)-p+1) #qf to get quantile(1-alpha)
+data_HT<-data.frame(HT=HT,ind=ind_target) #HT statistics of data in Phase II
+ggplot(data_HT, aes(x=ind,y=HT))+
+  geom_line()+
+  geom_abline(slope=0, intercept=UCL, lty="dotted")+#draw UCL line
+  ylim(0,75)
+
+```
+
+4번 문제와 동일한 Phase I, Phase II split이지만 여기서는 1 batch 당 2개의 데이터로 group화하여 분석한다.
+따라서 S와 그에 따른 HT 통계량, UCL이 4번의 것과 약간 달라진다. 그러나 16~25번 batch에 대한 HT 통계량이 UCL보다 작고, 공정은 이 분석 방법에서도 In control 상태, 평균과 분산의 shifting이 일어나지 않았다는 결론을 얻는다.
+

@@ -1,0 +1,84 @@
+
+# reference: https://bioinformaticsandme.tistory.com/10
+
+# 저체중아의 산모 vs 저체중아x의 산모의 체중 차이를 permutation test 해보자
+
+# 1. birth weight 데이터 로딩
+install.packages("MASS")
+library(MASS)
+data(birthwt)
+# 데이터 설명
+colnames(birthwt)
+
+# 189 obs, 10 variables
+str(birthwt)
+
+# 2. 정상군과 실험군 분류 
+normal=birthwt[birthwt[,"low"]==0,"lwt"]
+normal
+str(normal)
+
+case=birthwt[birthwt[,"low"]==1,"lwt"]
+case
+str(case)
+
+# original p-value=0.01308
+t.test(normal,case)
+
+# 3. 두 그룹의 산모 체중에 대한 t 검정 값
+real_test=t.test(normal,case)$statistic
+real_test
+
+# 4. 두 그룹간의 permutation test
+getwd()
+setwd("C:/Users/keonvin/Desktop/데이터마이닝 방법 및 실습 (박태성 교수님;TA 과목)/KV Park/9주차 실습(permutation test)")
+source("permfunc.R") # 첨부파일 다운하여 working directory에 놓고 실행
+
+set.seed(1)
+tperm=perm.test(normal,case,n.perm=1000) # 1000번 permutation 하여, 1000 개의 t-statistc 계산
+
+hist(tperm)
+abline(v=abs(real_test),lty=2,col=2) # 실제 t-value 가 분포의 극단치에서 보임(reject H0으로 보임)
+
+# 5. Empirical p-value
+pvalue=mean(abs(tperm)>=abs(real_test)) # 위 그래프에서 Red (real t-value) 오른쪽에 있는 개수들의 평균을 구함
+# 0.017 : significant ; original p-value=0.01308 와 유사한 값이 나옴 (seed 값에 따라 조금씩은 바뀜)
+# Conlcusion: 저체중아 여부에 따라 산모의 체중의 모평균은 통계적으로 유의미한 차이가 있다.
+pvalue
+
+
+# age 검정
+str(birthwt)
+# 2. 정상군과 실험군 분류 
+normal=birthwt[birthwt[,"low"]==0,"age"]
+normal
+str(normal)
+
+case=birthwt[birthwt[,"low"]==1,"age"]
+case
+str(case)
+
+# original p-value=0.07834
+t.test(normal,case)
+
+# 3. 두 그룹의 산모 age에 대한 t 검정 값=1.773672 (threshold for permutation test)
+real_test=t.test(normal,case)$statistic
+real_test
+
+# 4. 두 그룹간의 permutation test
+getwd()
+setwd("C:/Users/keonvin/Desktop/데이터마이닝 방법 및 실습 (박태성 교수님;TA 과목)/KV Park/9주차 실습(permutation test)")
+source("permfunc.R") # 첨부파일 다운하여 working directory에 놓고 실행
+
+set.seed(1)
+tperm=perm.test(normal,case,n.perm=1000) # 1000번 permutation 하여, 1000 개의 t-statistc 계산
+
+hist(tperm)
+abline(v=abs(real_test),lty=2,col=2) # 실제 t-value 가 분포의 극단치에서 보임(reject H0으로 보임)
+
+# 5. Empirical p-value
+pvalue=mean(abs(tperm)>=abs(real_test)) # 위 그래프에서 Red (real t-value) 오른쪽에 있는 개수들의 평균을 구함
+# 0.086 : significant ; original p-value=0.07834 와 유사한 값이 나옴 (seed 값에 따라 조금씩은 바뀜)
+# Conlcusion: 저체중아 여부에 따라 산모의 나이의 모평균은 통계적으로 유의미한 차이가 없다.
+pvalue
+

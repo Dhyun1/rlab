@@ -1,0 +1,52 @@
+#ROMA_initial_prem
+#ROMA_initial_postm
+#HE4_Initial
+#CA125_initial
+
+#PLN_status(Popliteal lymph nodes)
+#PALN_status(Para-aortic lymph node)
+#No_of_harvested_LNs(# of harvested lymph node)
+#No_of_positive_LNs(# of positive lymph node)
+
+#NAC(N-acetylcysteine)
+#(0=No 1=Yes)
+#NAC_Regimen(1=Paclitaxel_Carboplatin,2=Taxotere_Carboplatin)
+#Cycle_NAC
+#Start_date_NAC
+
+#WBC(white blood cell,백혈구)
+#Hb(hemoglobin,헤모글로빈)
+#PLT(platelets,혈소판)
+#Segmented_neutrophil(호중구)
+#Lymphocyte(림프구)
+#Monocyte(단핵구)
+#Fibrinogen(피브리노겐)
+#hs_CRP(고감도C-반응단백질)
+#NLR(Neutrophil to Lymphocyte Ratio)
+#MLR(Monoctye to Lymphocyte Ratio)
+#PLR(Platelets to Lymphocyte Ratio)
+
+#Origin(1=Ovary 2=Tube 3=PPC 4=Unknown)
+#Histology(1=serous 2=endometrioid 3=nucinous 4=clear cell
+#         5=mixed 6=unspecified 7=others(detailed) 8=undifferentiated 9=unknown)
+#Grade(1=G1 2=G2 3=G3 4=undifferentiated 5=unknown)
+#FIGO2014(1A,1B,1C1,1C2, .... 4A,4B)
+#Cytology_Ascites_or_Peritoneal_washing(Malignant_cell checking)
+#(0=Negative 1=Positive 2=Few atypical/Suspicious 3= Unknown_
+
+
+
+
+
+#Institution(1=SNUH 2=SNUBH 3=서울아산 4=신촌세브란스)
+#Marital_state(1=미혼 2=이혼 3=사별 4=기혼)
+#Educational_state(1=고등학교 졸업 이하 2=대학 졸업 이상 3=unknown)
+
+#Systolic_BP(수축기혈압),Diastolic_BP(이완기혈압)
+#Height,Weight,BMI,
+
+
+#Binary Variable with value 0=NO 1=YES
+#Menopausal_state(폐경),Occupational_state,Smoking, Alcohol, Hypertension-고혈압, diabetes-당뇨병,
+#dyslipidemia(이상지질혈증),
+#Personal_history_of_breast_cancer,Familial_history_of_breast_cancer,
